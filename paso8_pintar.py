@@ -1,7 +1,7 @@
 # Paso 8: pintar en el aire con el dedo indice.
-# - Solo el indice levantado          -> pintas.
-# - Indice + corazon levantados (V)   -> modo seleccion: no pinta; sube el dedo hacia la barra
-#                                         de arriba para elegir color, goma o "Limpiar".
+# - Solo el indice levantado          -> pintas. Si lo subes a la barra de arriba (por encima de
+#                                         la linea gris) eliges color, goma o "Limpiar".
+# - Indice + corazon levantados (V)   -> mover el dedo sin pintar (y tambien elegir en la barra).
 # - Mano abierta un momento           -> borra todo.
 # Teclas: "q" salir, "c" borrar, "s" guardar el dibujo como PNG, "f" fondo negro on/off.
 import time
@@ -47,6 +47,7 @@ class Pizarra:
         self.palma_vista = 0.0         # ultima vez que se vio la mano abierta
         self.limpiar_desde = None      # cuando empezo el dedo a estar sobre "Limpiar"
         self.encima = None             # casilla de la barra sobre la que esta el dedo
+        self.levantado = set()         # manos que vienen de la barra (no unir con una linea)
         self.modo = {}                 # que esta haciendo cada mano (para dibujar el cursor)
 
     def borrar(self):
@@ -80,25 +81,34 @@ class Pizarra:
                 x = px * s + x * (1 - s)
                 y = py * s + y * (1 - s)
 
-            if seleccion:
-                # Modo seleccion: elegimos la casilla segun la X del dedo, al momento
+            if (seleccion or pintar) and y < ZONA_SELECCION:
+                # Dedo en la zona de la barra (con uno o con dos dedos): elegimos la casilla segun
+                # la X del dedo, al momento. Aqui arriba nunca se pinta.
                 self.modo[lado] = "seleccion"
-                if y < ZONA_SELECCION:
-                    casilla = min(max(int(x / (ancho / len(PALETA))), 0), len(PALETA) - 1)
-                    self.encima = casilla
-                    if PALETA[casilla][0] == "Limpiar":
-                        sobre_limpiar = True
-                    else:
-                        self.color = casilla
+                casilla = min(max(int(x / (ancho / len(PALETA))), 0), len(PALETA) - 1)
+                self.encima = casilla
+                if PALETA[casilla][0] == "Limpiar":
+                    sobre_limpiar = True
+                else:
+                    self.color = casilla
+                # Pincel levantado: al bajar de la barra la linea empieza donde estes, sin un
+                # trazo desde la barra hasta el dibujo
+                self.levantado.add(lado)
+                self.anterior[lado] = (x, y)
+            elif seleccion:
+                # V fuera de la barra: mover el dedo sin pintar
+                self.modo[lado] = "seleccion"
+                self.levantado.add(lado)
                 self.anterior[lado] = (x, y)
             elif pintar:
                 # Modo pintar: linea desde el punto anterior hasta el actual
                 self.modo[lado] = "pintar"
-                if lado in self.anterior and y > ZONA_SELECCION:
+                if lado in self.anterior and lado not in self.levantado:
                     nombre, color = PALETA[self.color]
                     grosor = GROSOR_GOMA if nombre == "Goma" else GROSOR_PINCEL
                     px, py = self.anterior[lado]
                     cv2.line(self.lienzo, (int(px), int(py)), (int(x), int(y)), color, grosor, cv2.LINE_AA)
+                self.levantado.discard(lado)
                 self.anterior[lado] = (x, y)
             else:
                 # Cualquier otra postura levanta el pincel
