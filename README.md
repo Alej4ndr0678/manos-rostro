@@ -9,6 +9,7 @@ Hecho con [OpenCV](https://opencv.org/) (cámara y dibujo) y [MediaPipe](https:/
 - Detección de hasta 2 manos con 21 puntos cada una y su lado (izquierda/derecha).
 - Detección de rostros con caja, % de confianza y 6 puntos clave.
 - Contador de dedos (0 a 5 por mano), con ángulos en 3D para que funcione con la mano girada.
+- Reconocimiento de 7 gestos: puño, mano abierta, apuntar arriba, pulgar arriba/abajo, victoria y "te quiero".
 - Partículas con física (gravedad, rozamiento, brillo) que siguen el movimiento de los dedos. Pellizco = explosión.
 - Todo se activa y desactiva con el teclado.
 
@@ -29,7 +30,7 @@ pip install -r requirements.txt
 
 > Si PowerShell bloquea `Activate.ps1`, ejecuta una vez `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
 
-Los modelos de MediaPipe (`hand_landmarker.task` y `blaze_face_short_range.tflite`) se descargan solos la primera vez.
+Los modelos de MediaPipe (`gesture_recognizer.task`, `hand_landmarker.task` y `blaze_face_short_range.tflite`) se descargan solos la primera vez.
 
 ## Uso
 
@@ -45,6 +46,7 @@ python sistema.py
 | `d` | Depuración de dedos (`P I C A M`) |
 | `p` | Partículas on/off |
 | `f` | Fondo negro on/off |
+| `g` | Nombre del gesto on/off |
 | `q` | Salir |
 
 ## Estructura
@@ -58,6 +60,7 @@ Cada paso se puede ejecutar por separado, y `sistema.py` los une:
 | `paso3_rostro.py` | Detección de rostro |
 | `paso5_dedos.py` | Contador de dedos |
 | `paso6_particulas.py` | Efecto de partículas |
+| `paso7_gestos.py` | Reconocimiento de gestos |
 | `sistema.py` | Todo junto |
 
 ## Cómo funciona

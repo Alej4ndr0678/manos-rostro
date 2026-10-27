@@ -1,12 +1,13 @@
 # Sistema completo: rostro + manos + contador de dedos + particulas, todo en una ventana.
 # Reutiliza las funciones de los pasos anteriores (deben estar en la misma carpeta):
-#   paso2_manos.py, paso3_rostro.py, paso5_dedos.py, paso6_particulas.py
+#   paso2_manos.py, paso3_rostro.py, paso5_dedos.py, paso6_particulas.py, paso7_gestos.py
 #
 # Teclas:
 #   q = salir
 #   r = rostro on/off        m = esqueleto de manos on/off
 #   c = contador de dedos on/off   d = modo depuracion de dedos (P I C A M)
 #   p = particulas on/off    f = fondo negro on/off
+#   g = nombre del gesto on/off
 import time
 
 import cv2
@@ -16,12 +17,15 @@ import paso2_manos as manos
 import paso3_rostro as rostro
 import paso5_dedos as dedos
 import paso6_particulas as particulas_fx
+import paso7_gestos as gestos
 
 
 def main():
-    manos.descargar_modelo()
+    # El reconocedor de gestos hace de detector de manos: devuelve los mismos 21 puntos
+    # y ademas el gesto, asi que no hace falta ejecutar dos modelos de manos.
+    gestos.descargar_modelo()
     rostro.descargar_modelo()
-    detector_manos = manos.crear_detector()
+    detector_manos = gestos.crear_detector()
     detector_rostro = rostro.crear_detector()
 
     cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
@@ -31,9 +35,9 @@ def main():
 
     # Que se ve en pantalla. Cada tecla cambia una de estas opciones.
     ver = {"rostro": True, "manos": True, "contador": True, "debug": False,
-           "particulas": True, "camara": True}
+           "particulas": True, "camara": True, "gestos": True}
     teclas = {"r": "rostro", "m": "manos", "c": "contador", "d": "debug",
-              "p": "particulas", "f": "camara"}
+              "p": "particulas", "f": "camara", "g": "gestos"}
 
     historial_dedos = {}   # para suavizar el contador
     lista_particulas = []  # particulas vivas
@@ -41,7 +45,7 @@ def main():
 
     inicio = time.monotonic()
     anterior = inicio
-    print("Teclas: q salir | r rostro | m manos | c contador | d depuracion | p particulas | f fondo negro")
+    print("Teclas: q salir | r rostro | m manos | c contador | d depuracion | p particulas | f fondo negro | g gestos")
 
     while True:
         ok, frame = cap.read()
@@ -54,7 +58,7 @@ def main():
         # 1) Detectar. La cara solo si la vamos a dibujar, asi ahorramos FPS.
         ahora = time.monotonic()
         ts = int((ahora - inicio) * 1000)
-        res_manos = manos.detectar(detector_manos, frame, ts)
+        res_manos = gestos.detectar(detector_manos, frame, ts)
         res_rostro = rostro.detectar(detector_rostro, frame, ts) if ver["rostro"] else None
 
         # 2) Fondo: la camara (oscurecida si hay particulas, para que brillen) o negro.
@@ -84,6 +88,8 @@ def main():
         total = None
         if ver["contador"]:
             total = dedos.dibujar_conteo(salida, res_manos, historial_dedos, ver["debug"])
+        if ver["gestos"]:
+            gestos.dibujar_gestos(salida, res_manos)
 
         # 5) Barra de informacion
         fps = 1 / max(ahora - anterior, 1e-6)
