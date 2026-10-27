@@ -59,7 +59,8 @@ python paso8_pintar.py
 | Postura | Acción |
 |---------|--------|
 | Solo el índice levantado | Pintar |
-| Índice + corazón (V) | Elegir color, goma o *Limpiar* subiendo el dedo hacia la barra (no hace falta tocarla, basta con pasar la línea gris) |
+| Índice (o V) por encima de la línea gris | Elegir color, goma o *Limpiar* en la barra (no hace falta tocarla) |
+| Índice + corazón (V) | Mover el dedo sin pintar |
 | Mano abierta 0,6 segundos | Borrar todo |
 
 Teclas: `c` borrar, `s` guardar el dibujo como PNG, `f` fondo negro, `q` salir.
