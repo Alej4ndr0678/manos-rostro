@@ -9,7 +9,7 @@ Hecho con [OpenCV](https://opencv.org/) (cámara y dibujo) y [MediaPipe](https:/
 - Detección de hasta 2 manos con 21 puntos cada una y su lado (izquierda/derecha).
 - Detección de rostros con caja, % de confianza y 6 puntos clave.
 - Contador de dedos (0 a 5 por mano), con ángulos en 3D para que funcione con la mano girada.
-- Pintar en el aire con el dedo índice (efecto neón, paleta de colores, goma y borrado con la mano abierta).
+- Pintar en el aire con el dedo índice (efecto neón, paleta de colores, goma y borrado con la mano abierta o el botón *Limpiar*).
 - Minijuego: explota bolas de luz con los dedos en 60 segundos, con récord guardado.
 - Reconocimiento de 7 gestos: puño, mano abierta, apuntar arriba, pulgar arriba/abajo, victoria y "te quiero".
 - Partículas con física (gravedad, rozamiento, brillo) que siguen el movimiento de los dedos. Pellizco = explosión.
@@ -60,8 +60,8 @@ python paso8_pintar.py
 | Postura | Acción |
 |---------|--------|
 | Solo el índice levantado | Pintar |
-| Índice + corazón (V) | Elegir color o goma pasando por la barra de arriba |
-| Mano abierta 1 segundo | Borrar todo |
+| Índice + corazón (V) | Elegir color, goma o *Limpiar* subiendo el dedo hacia la barra (no hace falta tocarla, basta con pasar la línea gris) |
+| Mano abierta 0,6 segundos | Borrar todo |
 
 Teclas: `c` borrar, `s` guardar el dibujo como PNG, `f` fondo negro, `q` salir.
 
