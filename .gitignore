@@ -1,0 +1,15 @@
+# Entorno virtual
+venv/
+.venv/
+
+# Cache de Python
+__pycache__/
+*.pyc
+
+# Modelos de MediaPipe (se descargan solos al ejecutar)
+*.task
+*.tflite
+
+# Editores
+.vscode/
+.idea/
