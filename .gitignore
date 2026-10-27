@@ -13,3 +13,6 @@ __pycache__/
 # Editores
 .vscode/
 .idea/
+
+# Dibujos guardados con la tecla s
+dibujo_*.png

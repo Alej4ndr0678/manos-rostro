@@ -9,6 +9,7 @@ Hecho con [OpenCV](https://opencv.org/) (cámara y dibujo) y [MediaPipe](https:/
 - Detección de hasta 2 manos con 21 puntos cada una y su lado (izquierda/derecha).
 - Detección de rostros con caja, % de confianza y 6 puntos clave.
 - Contador de dedos (0 a 5 por mano), con ángulos en 3D para que funcione con la mano girada.
+- Pintar en el aire con el dedo índice (efecto neón, paleta de colores, goma y borrado con la mano abierta).
 - Reconocimiento de 7 gestos: puño, mano abierta, apuntar arriba, pulgar arriba/abajo, victoria y "te quiero".
 - Partículas con física (gravedad, rozamiento, brillo) que siguen el movimiento de los dedos. Pellizco = explosión.
 - Todo se activa y desactiva con el teclado.
@@ -49,6 +50,20 @@ python sistema.py
 | `g` | Nombre del gesto on/off |
 | `q` | Salir |
 
+## Pintar en el aire
+
+```powershell
+python paso8_pintar.py
+```
+
+| Postura | Acción |
+|---------|--------|
+| Solo el índice levantado | Pintar |
+| Índice + corazón (V) | Elegir color o goma pasando por la barra de arriba |
+| Mano abierta 1 segundo | Borrar todo |
+
+Teclas: `c` borrar, `s` guardar el dibujo como PNG, `f` fondo negro, `q` salir.
+
 ## Estructura
 
 Cada paso se puede ejecutar por separado, y `sistema.py` los une:
@@ -61,6 +76,7 @@ Cada paso se puede ejecutar por separado, y `sistema.py` los une:
 | `paso5_dedos.py` | Contador de dedos |
 | `paso6_particulas.py` | Efecto de partículas |
 | `paso7_gestos.py` | Reconocimiento de gestos |
+| `paso8_pintar.py` | Pintar en el aire |
 | `sistema.py` | Todo junto |
 
 ## Cómo funciona
