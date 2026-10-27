@@ -36,6 +36,26 @@ pip install -r requirements.txt
 
 Los modelos de MediaPipe (`gesture_recognizer.task`, `hand_landmarker.task` y `blaze_face_short_range.tflite`) se descargan solos la primera vez.
 
+## Instalación (Linux)
+
+Para Ubuntu/Debian. En una terminal:
+
+```bash
+git clone https://github.com/Alej4ndr0678/manos-rostro.git
+cd manos-rostro
+bash instalar_linux.sh
+source venv/bin/activate
+python sistema.py
+```
+
+El script instala los paquetes del sistema que hacen falta (`python3-venv`, `python3-tk` para el ratón virtual, `libegl1`/`libgles2` para MediaPipe y `v4l-utils`), te añade al grupo `video` para poder usar la webcam, crea el entorno virtual e instala `requirements.txt`.
+
+- **Webcam:** en Linux se abre con V4L2 (`/dev/video0`). Si no funciona, mira qué cámaras tienes con `v4l2-ctl --list-devices`. Si acabas de entrar en el grupo `video`, cierra sesión y vuelve a entrar.
+- **Ratón virtual:** solo funciona en sesiones **X11**. En **Wayland** (por defecto en Ubuntu 22.04+ y Fedora) el programa avisa y el cursor no se mueve. Elige "Ubuntu en Xorg" en la pantalla de inicio de sesión.
+- **Fedora:** cambia el `apt-get` del script por `sudo dnf install python3-tkinter python3-devel mesa-libEGL v4l-utils`.
+
+En el código, todo lo que cambia entre sistemas está en `plataforma.py`.
+
 ## Uso
 
 ```powershell
@@ -119,6 +139,8 @@ Cada paso se puede ejecutar por separado, y `sistema.py` los une:
 | `paso10_raton.py` | Ratón virtual |
 | `paso11_reconocer.py` | Reconocimiento de identidad |
 | `hilos.py` | Cámara y detección en hilos separados (más FPS) |
+| `plataforma.py` | Diferencias entre Windows y Linux (cámara, ratón) |
+| `instalar_linux.sh` | Instalación en Linux |
 | `sistema.py` | Todo junto |
 
 ## Rendimiento

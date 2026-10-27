@@ -13,6 +13,7 @@ import cv2
 import pyautogui
 
 import paso2_manos as manos
+import plataforma
 
 pyautogui.FAILSAFE = True   # raton en una esquina = parar el programa
 pyautogui.PAUSE = 0         # sin pausas entre acciones (si no, va a tirones)
@@ -116,11 +117,14 @@ def main():
     manos.descargar_modelo()
     detector = manos.crear_detector()
 
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    cap = plataforma.abrir_camara(0)
     if not cap.isOpened():
         print("ERROR: no se pudo abrir la camara. Prueba a cambiar el 0 por 1.")
         raise SystemExit(1)
 
+    aviso = plataforma.aviso_raton()
+    if aviso:
+        print("AVISO:", aviso)
     ancho_pantalla, alto_pantalla = pyautogui.size()
     control = ControlRaton(ancho_pantalla, alto_pantalla)
     activo = True

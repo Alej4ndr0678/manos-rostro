@@ -2,9 +2,11 @@
 # Pulsa la tecla "q" para salir.
 import cv2
 
+import plataforma
+
 # 0 = primera camara del sistema. Si no abre, prueba con 1.
-# CAP_DSHOW (DirectShow) suele abrir mas rapido la camara en Windows.
-cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+# plataforma.abrir_camara elige la forma de abrirla segun el sistema (Windows o Linux).
+cap = plataforma.abrir_camara(0)
 
 if not cap.isOpened():
     print("ERROR: no se pudo abrir la camara. Prueba a cambiar el 0 por 1.")

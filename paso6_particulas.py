@@ -10,6 +10,7 @@ import cv2
 import numpy as np
 
 import paso2_manos as manos
+import plataforma
 
 PUNTAS = [4, 8, 12, 16, 20]   # pulgar, indice, corazon, anular, menique
 MAX_PARTICULAS = 1500         # limite para que no bajen los FPS
@@ -109,7 +110,7 @@ def main():
     manos.descargar_modelo()
     detector = manos.crear_detector()
 
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    cap = plataforma.abrir_camara(0)
     if not cap.isOpened():
         print("ERROR: no se pudo abrir la camara. Prueba a cambiar el 0 por 1.")
         raise SystemExit(1)

@@ -9,6 +9,8 @@ import mediapipe as mp
 from mediapipe.tasks.python import BaseOptions
 from mediapipe.tasks.python import vision
 
+import plataforma
+
 # MediaPipe necesita un archivo de modelo (.task). Si no esta, lo descargamos (~8 MB).
 MODELO = "hand_landmarker.task"
 URL_MODELO = ("https://storage.googleapis.com/mediapipe-models/hand_landmarker/"
@@ -68,7 +70,7 @@ def main():
     descargar_modelo()
     detector = crear_detector()
 
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    cap = plataforma.abrir_camara(0)
     if not cap.isOpened():
         print("ERROR: no se pudo abrir la camara. Prueba a cambiar el 0 por 1.")
         raise SystemExit(1)

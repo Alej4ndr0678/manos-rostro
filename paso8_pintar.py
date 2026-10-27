@@ -11,6 +11,7 @@ import numpy as np
 
 import paso5_dedos as dedos
 import paso7_gestos as gestos
+import plataforma
 
 # Barra de colores (BGR). "Goma" borra lo pintado.
 PALETA = [
@@ -195,7 +196,7 @@ def main():
     gestos.descargar_modelo()
     detector = gestos.crear_detector()
 
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    cap = plataforma.abrir_camara(0)
     if not cap.isOpened():
         print("ERROR: no se pudo abrir la camara. Prueba a cambiar el 0 por 1.")
         raise SystemExit(1)
