@@ -1,8 +1,8 @@
 # Paso 8: pintar en el aire con el dedo indice.
 # - Solo el indice levantado          -> pintas.
-# - Indice + corazon levantados (V)   -> modo seleccion: no pinta; pasa por la barra de arriba
-#                                         para elegir color o la goma.
-# - Mano abierta durante 1 segundo    -> borra todo.
+# - Indice + corazon levantados (V)   -> modo seleccion: no pinta; sube el dedo hacia la barra
+#                                         de arriba para elegir color, goma o "Limpiar".
+# - Mano abierta un momento           -> borra todo.
 # Teclas: "q" salir, "c" borrar, "s" guardar el dibujo como PNG, "f" fondo negro on/off.
 import time
 
@@ -20,12 +20,22 @@ PALETA = [
     ("Naranja", (0, 165, 255)),
     ("Blanco", (255, 255, 255)),
     ("Goma", (0, 0, 0)),
+    ("Limpiar", None),   # no es un color: mantener el dedo encima borra todo
 ]
-ALTO_BARRA = 70
+ALTO_BARRA = 90
+# La seleccion funciona por debajo de la barra tambien: con la punta del dedo tan arriba
+# MediaPipe suele perder la mano (se sale de la imagen), asi que no hace falta llegar a tocarla.
+ZONA_SELECCION = 160
 GROSOR_PINCEL = 8
 GROSOR_GOMA = 50
-SUAVIZADO = 0.5          # 0 = sin suavizar, cerca de 1 = muy suave pero con retraso
-SEGUNDOS_PARA_BORRAR = 1.0
+# Suavizado adaptativo: mucho cuando el dedo va lento (quita el temblor) y poco cuando va
+# rapido (asi no se queda atras al hacer un movimiento grande, como subir a la barra).
+SUAVIZADO_LENTO = 0.6
+SUAVIZADO_RAPIDO = 0.1
+VELOCIDAD_RAPIDA = 25     # pixeles por frame a partir de los que se considera "rapido"
+SEGUNDOS_PARA_BORRAR = 0.6
+SEGUNDOS_LIMPIAR = 0.4    # tiempo con el dedo sobre "Limpiar"
+TOLERANCIA_PERDIDA = 0.3  # si la mano abierta desaparece menos que esto, no se reinicia la cuenta
 
 
 class Pizarra:
@@ -34,6 +44,9 @@ class Pizarra:
         self.color = 0                 # indice en PALETA
         self.anterior = {}             # ultimo punto de cada mano, para unir con una linea
         self.palma_desde = None        # cuando empezo a verse la mano abierta
+        self.palma_vista = 0.0         # ultima vez que se vio la mano abierta
+        self.limpiar_desde = None      # cuando empezo el dedo a estar sobre "Limpiar"
+        self.encima = None             # casilla de la barra sobre la que esta el dedo
         self.modo = {}                 # que esta haciendo cada mano (para dibujar el cursor)
 
     def borrar(self):
@@ -43,31 +56,45 @@ class Pizarra:
         alto, ancho = self.lienzo.shape[:2]
         vistas = set()
         hay_palma = False
+        sobre_limpiar = False
+        self.encima = None
 
         for i, puntos in enumerate(resultado.hand_landmarks):
             lado = resultado.handedness[i][0].category_name
             vistas.add(lado)
             p, indice, corazon, anular, menique = dedos.dedos_levantados(puntos, resultado.hand_world_landmarks[i])
-            if gestos.nombre_gesto(resultado, i) == "Mano abierta" or all((p, indice, corazon, anular, menique)):
-                hay_palma = True
+            gesto = gestos.nombre_gesto(resultado, i)
+            palma = gesto == "Mano abierta" or all((p, indice, corazon, anular, menique))
+            # Para la V basta con indice y corazon arriba y que anular y menique no esten los dos
+            # arriba (a veces el anular se queda medio levantado). El gesto "Victoria" tambien vale.
+            seleccion = not palma and (gesto == "Victoria" or (indice and corazon and not (anular and menique)))
+            pintar = not palma and not seleccion and (gesto == "Apuntar arriba" or (indice and not corazon))
+            hay_palma = hay_palma or palma
 
-            # Punta del indice en pixeles, suavizada con la posicion anterior (quita el temblor)
+            # Punta del indice en pixeles, con suavizado adaptativo
             x, y = puntos[8].x * ancho, puntos[8].y * alto
             if lado in self.anterior:
                 px, py = self.anterior[lado]
-                x = px * SUAVIZADO + x * (1 - SUAVIZADO)
-                y = py * SUAVIZADO + y * (1 - SUAVIZADO)
+                rapido = ((x - px) ** 2 + (y - py) ** 2) ** 0.5 > VELOCIDAD_RAPIDA
+                s = SUAVIZADO_RAPIDO if rapido else SUAVIZADO_LENTO
+                x = px * s + x * (1 - s)
+                y = py * s + y * (1 - s)
 
-            if indice and corazon and not anular and not menique:
-                # Modo seleccion: si el dedo esta sobre la barra, cambia de color
+            if seleccion:
+                # Modo seleccion: elegimos la casilla segun la X del dedo, al momento
                 self.modo[lado] = "seleccion"
-                if y < ALTO_BARRA:
-                    self.color = min(int(x / (ancho / len(PALETA))), len(PALETA) - 1)
+                if y < ZONA_SELECCION:
+                    casilla = min(max(int(x / (ancho / len(PALETA))), 0), len(PALETA) - 1)
+                    self.encima = casilla
+                    if PALETA[casilla][0] == "Limpiar":
+                        sobre_limpiar = True
+                    else:
+                        self.color = casilla
                 self.anterior[lado] = (x, y)
-            elif indice and not corazon and not anular and not menique:
+            elif pintar:
                 # Modo pintar: linea desde el punto anterior hasta el actual
                 self.modo[lado] = "pintar"
-                if lado in self.anterior and y > ALTO_BARRA:
+                if lado in self.anterior and y > ZONA_SELECCION:
                     nombre, color = PALETA[self.color]
                     grosor = GROSOR_GOMA if nombre == "Goma" else GROSOR_PINCEL
                     px, py = self.anterior[lado]
@@ -84,20 +111,37 @@ class Pizarra:
                 del self.anterior[lado]
                 self.modo.pop(lado, None)
 
-        # Mano abierta mantenida = borrar todo
+        # Dedo sobre "Limpiar" un momento = borrar todo
+        if sobre_limpiar:
+            if self.limpiar_desde is None:
+                self.limpiar_desde = ahora
+            elif ahora - self.limpiar_desde >= SEGUNDOS_LIMPIAR:
+                self.borrar()
+                self.limpiar_desde = None
+        else:
+            self.limpiar_desde = None
+
+        # Mano abierta mantenida = borrar todo. Si MediaPipe pierde la mano un instante,
+        # no reiniciamos la cuenta (antes habia que empezar de cero y parecia que tardaba).
         if hay_palma:
+            self.palma_vista = ahora
             if self.palma_desde is None:
                 self.palma_desde = ahora
             elif ahora - self.palma_desde >= SEGUNDOS_PARA_BORRAR:
                 self.borrar()
                 self.palma_desde = None
-        else:
+                self.palma_vista = 0.0
+        elif self.palma_desde is not None and ahora - self.palma_vista > TOLERANCIA_PERDIDA:
             self.palma_desde = None
 
     def progreso_borrado(self, ahora):
-        if self.palma_desde is None:
-            return 0.0
-        return min((ahora - self.palma_desde) / SEGUNDOS_PARA_BORRAR, 1.0)
+        # Progreso (0 a 1) del borrado, ya sea con la mano abierta o con "Limpiar"
+        progreso = 0.0
+        if self.palma_desde is not None:
+            progreso = (ahora - self.palma_desde) / SEGUNDOS_PARA_BORRAR
+        if self.limpiar_desde is not None:
+            progreso = max(progreso, (ahora - self.limpiar_desde) / SEGUNDOS_LIMPIAR)
+        return min(progreso, 1.0)
 
     def componer(self, fondo):
         # Igual que las particulas: lo pintado + su version desenfocada = efecto neon
@@ -109,12 +153,17 @@ class Pizarra:
         ancho_caja = ancho / len(PALETA)
         for i, (nombre, color) in enumerate(PALETA):
             x1, x2 = int(i * ancho_caja), int((i + 1) * ancho_caja)
-            relleno = (60, 60, 60) if nombre == "Goma" else color
-            cv2.rectangle(frame, (x1 + 4, 4), (x2 - 4, ALTO_BARRA - 4), relleno, -1)
+            relleno = {"Goma": (60, 60, 60), "Limpiar": (0, 0, 140)}.get(nombre, color)
+            # La casilla bajo el dedo se dibuja mas grande, para que se vea al momento que la apuntas
+            extra = 12 if i == self.encima else 0
+            cv2.rectangle(frame, (x1 + 4, 4), (x2 - 4, ALTO_BARRA - 4 + extra), relleno, -1)
             if i == self.color:
-                cv2.rectangle(frame, (x1 + 2, 2), (x2 - 2, ALTO_BARRA - 2), (255, 255, 255), 3)
-            cv2.putText(frame, nombre, (x1 + 10, ALTO_BARRA - 20),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0) if nombre != "Goma" else (255, 255, 255), 2)
+                cv2.rectangle(frame, (x1 + 2, 2), (x2 - 2, ALTO_BARRA - 2 + extra), (255, 255, 255), 3)
+            texto_oscuro = nombre not in ("Goma", "Limpiar")
+            cv2.putText(frame, nombre, (x1 + 8, ALTO_BARRA - 20 + extra),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0) if texto_oscuro else (255, 255, 255), 2)
+        # Linea tenue que marca hasta donde llega la zona de seleccion
+        cv2.line(frame, (0, ZONA_SELECCION), (ancho, ZONA_SELECCION), (90, 90, 90), 1)
 
         # Cursor en la punta del indice: relleno al pintar, hueco al seleccionar
         nombre, color = PALETA[self.color]
