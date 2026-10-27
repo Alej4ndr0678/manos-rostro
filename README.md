@@ -9,6 +9,11 @@ Hecho con [OpenCV](https://opencv.org/) (cámara y dibujo) y [MediaPipe](https:/
 - Detección de hasta 2 manos con 21 puntos cada una y su lado (izquierda/derecha).
 - Detección de rostros con caja, % de confianza y 6 puntos clave.
 - Contador de dedos (0 a 5 por mano), con ángulos en 3D para que funcione con la mano girada.
+- Pintar en el aire con el dedo índice (efecto neón, paleta de colores, goma y borrado con la mano abierta o el botón *Limpiar*).
+- Minijuego: explota bolas de luz con los dedos en 60 segundos, con récord guardado.
+- Ratón virtual: mueve el cursor de Windows con la mano, clic con un pellizco, arrastrar y clic derecho.
+- Reconocimiento de identidad: te registras una vez y luego el programa dice tu nombre al verte.
+- Reconocimiento de 7 gestos: puño, mano abierta, apuntar arriba, pulgar arriba/abajo, victoria y "te quiero".
 - Partículas con física (gravedad, rozamiento, brillo) que siguen el movimiento de los dedos. Pellizco = explosión.
 - Todo se activa y desactiva con el teclado.
 
@@ -29,7 +34,27 @@ pip install -r requirements.txt
 
 > Si PowerShell bloquea `Activate.ps1`, ejecuta una vez `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
 
-Los modelos de MediaPipe (`hand_landmarker.task` y `blaze_face_short_range.tflite`) se descargan solos la primera vez.
+Los modelos de MediaPipe (`gesture_recognizer.task`, `hand_landmarker.task` y `blaze_face_short_range.tflite`) se descargan solos la primera vez.
+
+## Instalación (Linux)
+
+Para Ubuntu/Debian. En una terminal:
+
+```bash
+git clone https://github.com/Alej4ndr0678/manos-rostro.git
+cd manos-rostro
+bash instalar_linux.sh
+source venv/bin/activate
+python sistema.py
+```
+
+El script instala los paquetes del sistema que hacen falta (`python3-venv`, `python3-tk` para el ratón virtual, `libegl1`/`libgles2` para MediaPipe y `v4l-utils`), te añade al grupo `video` para poder usar la webcam, crea el entorno virtual e instala `requirements.txt`.
+
+- **Webcam:** en Linux se abre con V4L2 (`/dev/video0`). Si no funciona, mira qué cámaras tienes con `v4l2-ctl --list-devices`. Si acabas de entrar en el grupo `video`, cierra sesión y vuelve a entrar.
+- **Ratón virtual:** solo funciona en sesiones **X11**. En **Wayland** (por defecto en Ubuntu 22.04+ y Fedora) el programa avisa y el cursor no se mueve. Elige "Ubuntu en Xorg" en la pantalla de inicio de sesión.
+- **Fedora:** cambia el `apt-get` del script por `sudo dnf install python3-tkinter python3-devel mesa-libEGL v4l-utils`.
+
+En el código, todo lo que cambia entre sistemas está en `plataforma.py`.
 
 ## Uso
 
@@ -45,7 +70,57 @@ python sistema.py
 | `d` | Depuración de dedos (`P I C A M`) |
 | `p` | Partículas on/off |
 | `f` | Fondo negro on/off |
+| `g` | Nombre del gesto on/off |
 | `q` | Salir |
+
+## Pintar en el aire
+
+```powershell
+python paso8_pintar.py
+```
+
+| Postura | Acción |
+|---------|--------|
+| Solo el índice levantado | Pintar |
+| Índice (o V) por encima de la línea gris | Elegir color, goma o *Limpiar* en la barra (no hace falta tocarla) |
+| Índice + corazón (V) | Mover el dedo sin pintar |
+| Mano abierta 0,6 segundos | Borrar todo |
+
+Teclas: `c` borrar, `s` guardar el dibujo como PNG, `f` fondo negro, `q` salir.
+
+## Minijuego
+
+```powershell
+python paso9_juego.py
+```
+
+Caen bolas de luz: tócalas con cualquier punta de dedo. Color = +1, dorada = +3, roja (bomba) = -5. La partida dura 60 segundos y cada vez caen más rápido. `espacio` empieza o reinicia, `q` sale. El récord se guarda en `record.txt`.
+
+## Ratón virtual
+
+```powershell
+python paso10_raton.py
+```
+
+| Postura | Acción |
+|---------|--------|
+| Mover la mano | Mover el cursor (sigue el nudillo del índice) |
+| Pellizco rápido pulgar + índice | Clic izquierdo |
+| Pellizco pulgar + índice más de 0,5 s | Arrastrar (suelta al separar los dedos) |
+| Pellizco pulgar + corazón | Clic derecho |
+
+Solo hace falta mover la mano dentro del recuadro de la vista previa. `p` pausa o reanuda el control y `q` sale. **Parada de emergencia:** lleva el ratón físico a una esquina de la pantalla.
+
+## Reconocimiento de identidad
+
+```powershell
+python paso11_reconocer.py registrar TuNombre   # una vez: guarda 15 muestras de tu cara
+python paso11_reconocer.py                     # reconoce a las personas registradas
+```
+
+Usa los modelos YuNet (detección) y SFace (reconocimiento) de OpenCV. Cada cara se convierte en 128 números (*embedding*) y se compara por similitud coseno: a partir de 0.363 se considera la misma persona.
+
+> ⚠️ **Seguridad y privacidad:** no sirve como sistema de acceso, porque se engaña con una foto (no tiene detección de vida). Las caras registradas (`caras/`) son datos biométricos: están en el `.gitignore` para que nunca se suban al repo.
 
 ## Estructura
 
@@ -58,7 +133,25 @@ Cada paso se puede ejecutar por separado, y `sistema.py` los une:
 | `paso3_rostro.py` | Detección de rostro |
 | `paso5_dedos.py` | Contador de dedos |
 | `paso6_particulas.py` | Efecto de partículas |
+| `paso7_gestos.py` | Reconocimiento de gestos |
+| `paso8_pintar.py` | Pintar en el aire |
+| `paso9_juego.py` | Minijuego de bolas de luz |
+| `paso10_raton.py` | Ratón virtual |
+| `paso11_reconocer.py` | Reconocimiento de identidad |
+| `hilos.py` | Cámara y detección en hilos separados (más FPS) |
+| `plataforma.py` | Diferencias entre Windows y Linux (cámara, ratón) |
+| `instalar_linux.sh` | Instalación en Linux |
 | `sistema.py` | Todo junto |
+
+## Rendimiento
+
+`sistema.py` usa tres hilos para que nada espere a nada:
+
+1. **Cámara** (`CamaraEnHilo`): lee la webcam sin parar y guarda el último frame.
+2. **Detección** (`DetectorEnHilo`): manos y cara sobre el frame más reciente; si llega uno nuevo mientras trabaja, se descarta el viejo.
+3. **Principal**: solo dibuja y muestra, así que el vídeo va a la velocidad de la cámara aunque la detección sea más lenta.
+
+Arriba se ven los dos valores: `FPS` (vídeo) y `deteccion`.
 
 ## Cómo funciona
 

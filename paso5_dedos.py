@@ -9,6 +9,7 @@ import cv2
 
 import paso2_manos as manos
 import paso3_rostro as rostro
+import plataforma
 
 # Indices de los 21 puntos de la mano que usamos:
 BASE_CORAZON = 9
@@ -88,7 +89,7 @@ def main():
     detector_manos = manos.crear_detector()
     detector_rostro = rostro.crear_detector()
 
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    cap = plataforma.abrir_camara(0)
     if not cap.isOpened():
         print("ERROR: no se pudo abrir la camara. Prueba a cambiar el 0 por 1.")
         raise SystemExit(1)

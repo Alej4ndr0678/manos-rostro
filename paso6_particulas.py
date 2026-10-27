@@ -10,6 +10,7 @@ import cv2
 import numpy as np
 
 import paso2_manos as manos
+import plataforma
 
 PUNTAS = [4, 8, 12, 16, 20]   # pulgar, indice, corazon, anular, menique
 MAX_PARTICULAS = 1500         # limite para que no bajen los FPS
@@ -87,6 +88,15 @@ def procesar_manos(resultado, ancho, alto, anteriores, particulas):
     return actuales
 
 
+def brillo(lienzo, sigma):
+    # Desenfoque para el efecto de luz. Lo hacemos a media resolucion y luego lo ampliamos:
+    # el resultado es casi igual (un brillo ya es borroso) pero unas 3 veces mas rapido.
+    alto, ancho = lienzo.shape[:2]
+    pequeno = cv2.resize(lienzo, (ancho // 2, alto // 2), interpolation=cv2.INTER_AREA)
+    pequeno = cv2.GaussianBlur(pequeno, (0, 0), sigma / 2)
+    return cv2.resize(pequeno, (ancho, alto), interpolation=cv2.INTER_LINEAR)
+
+
 def actualizar_y_dibujar(particulas, lienzo):
     for p in particulas:
         p.actualizar()
@@ -100,7 +110,7 @@ def main():
     manos.descargar_modelo()
     detector = manos.crear_detector()
 
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    cap = plataforma.abrir_camara(0)
     if not cap.isOpened():
         print("ERROR: no se pudo abrir la camara. Prueba a cambiar el 0 por 1.")
         raise SystemExit(1)
@@ -128,9 +138,9 @@ def main():
         # asi los colores se iluminan unos a otros como si fuera luz (efecto brillo).
         lienzo = np.zeros_like(frame)
         actualizar_y_dibujar(particulas, lienzo)
-        brillo = cv2.GaussianBlur(lienzo, (0, 0), 6)
+        brillo_lienzo = brillo(lienzo, 6)
         fondo = (frame // 2) if ver_camara else np.zeros_like(frame)  # camara oscurecida para que resalte
-        salida = cv2.add(cv2.add(fondo, lienzo), brillo)
+        salida = cv2.add(cv2.add(fondo, lienzo), brillo_lienzo)
 
         if ver_esqueleto:
             manos.dibujar_manos(salida, resultado)

@@ -14,5 +14,14 @@ __pycache__/
 .vscode/
 .idea/
 
+# Dibujos guardados con la tecla s
+dibujo_*.png
+
 # Record del minijuego
 record.txt
+
+# Modelos de OpenCV para reconocer caras (se descargan solos)
+*.onnx
+
+# Datos biometricos: NUNCA subirlos al repo
+caras/
