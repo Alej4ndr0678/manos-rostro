@@ -10,6 +10,7 @@ Hecho con [OpenCV](https://opencv.org/) (cámara y dibujo) y [MediaPipe](https:/
 - Detección de rostros con caja, % de confianza y 6 puntos clave.
 - Contador de dedos (0 a 5 por mano), con ángulos en 3D para que funcione con la mano girada.
 - Pintar en el aire con el dedo índice (efecto neón, paleta de colores, goma y borrado con la mano abierta).
+- Minijuego: explota bolas de luz con los dedos en 60 segundos, con récord guardado.
 - Reconocimiento de 7 gestos: puño, mano abierta, apuntar arriba, pulgar arriba/abajo, victoria y "te quiero".
 - Partículas con física (gravedad, rozamiento, brillo) que siguen el movimiento de los dedos. Pellizco = explosión.
 - Todo se activa y desactiva con el teclado.
@@ -64,6 +65,14 @@ python paso8_pintar.py
 
 Teclas: `c` borrar, `s` guardar el dibujo como PNG, `f` fondo negro, `q` salir.
 
+## Minijuego
+
+```powershell
+python paso9_juego.py
+```
+
+Caen bolas de luz: tócalas con cualquier punta de dedo. Color = +1, dorada = +3, roja (bomba) = -5. La partida dura 60 segundos y cada vez caen más rápido. `espacio` empieza o reinicia, `q` sale. El récord se guarda en `record.txt`.
+
 ## Estructura
 
 Cada paso se puede ejecutar por separado, y `sistema.py` los une:
@@ -77,6 +86,7 @@ Cada paso se puede ejecutar por separado, y `sistema.py` los une:
 | `paso6_particulas.py` | Efecto de partículas |
 | `paso7_gestos.py` | Reconocimiento de gestos |
 | `paso8_pintar.py` | Pintar en el aire |
+| `paso9_juego.py` | Minijuego de bolas de luz |
 | `sistema.py` | Todo junto |
 
 ## Cómo funciona

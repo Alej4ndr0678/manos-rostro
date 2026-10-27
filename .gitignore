@@ -16,3 +16,6 @@ __pycache__/
 
 # Dibujos guardados con la tecla s
 dibujo_*.png
+
+# Record del minijuego
+record.txt
