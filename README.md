@@ -117,7 +117,18 @@ Cada paso se puede ejecutar por separado, y `sistema.py` los une:
 | `paso9_juego.py` | Minijuego de bolas de luz |
 | `paso10_raton.py` | Ratón virtual |
 | `paso11_reconocer.py` | Reconocimiento de identidad |
+| `hilos.py` | Cámara y detección en hilos separados (más FPS) |
 | `sistema.py` | Todo junto |
+
+## Rendimiento
+
+`sistema.py` usa tres hilos para que nada espere a nada:
+
+1. **Cámara** (`CamaraEnHilo`): lee la webcam sin parar y guarda el último frame.
+2. **Detección** (`DetectorEnHilo`): manos y cara sobre el frame más reciente; si llega uno nuevo mientras trabaja, se descarta el viejo.
+3. **Principal**: solo dibuja y muestra, así que el vídeo va a la velocidad de la cámara aunque la detección sea más lenta.
+
+Arriba se ven los dos valores: `FPS` (vídeo) y `deteccion`.
 
 ## Cómo funciona
 
