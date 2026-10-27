@@ -11,6 +11,7 @@ import numpy as np
 
 import paso2_manos as manos
 import paso6_particulas as particulas_fx
+import plataforma
 
 DURACION = 60            # segundos por partida
 ARCHIVO_RECORD = "record.txt"
@@ -177,7 +178,7 @@ def main():
     manos.descargar_modelo()
     detector = manos.crear_detector()
 
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    cap = plataforma.abrir_camara(0)
     if not cap.isOpened():
         print("ERROR: no se pudo abrir la camara. Prueba a cambiar el 0 por 1.")
         raise SystemExit(1)

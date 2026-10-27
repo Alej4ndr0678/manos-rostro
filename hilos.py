@@ -14,10 +14,12 @@ import time
 
 import cv2
 
+import plataforma
+
 
 class CamaraEnHilo:
     def __init__(self, indice=0):
-        self.cap = cv2.VideoCapture(indice, cv2.CAP_DSHOW)
+        self.cap = plataforma.abrir_camara(indice)
         self.frame = None
         self.numero = 0               # cuenta de frames leidos, para saber si hay uno nuevo
         self.corriendo = self.cap.isOpened()

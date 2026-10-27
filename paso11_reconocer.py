@@ -21,6 +21,8 @@ import urllib.request
 import cv2
 import numpy as np
 
+import plataforma
+
 BASE_URL = "https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/"
 MODELO_DETECTOR = "face_detection_yunet_2023mar.onnx"
 MODELO_RECONOCEDOR = "face_recognition_sface_2021dec.onnx"
@@ -84,7 +86,7 @@ def identificar(reconocedor, emb, personas):
 
 
 def abrir_camara():
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    cap = plataforma.abrir_camara(0)
     if not cap.isOpened():
         print("ERROR: no se pudo abrir la camara. Prueba a cambiar el 0 por 1.")
         raise SystemExit(1)
