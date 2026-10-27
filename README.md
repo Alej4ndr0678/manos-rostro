@@ -12,6 +12,7 @@ Hecho con [OpenCV](https://opencv.org/) (cámara y dibujo) y [MediaPipe](https:/
 - Pintar en el aire con el dedo índice (efecto neón, paleta de colores, goma y borrado con la mano abierta).
 - Minijuego: explota bolas de luz con los dedos en 60 segundos, con récord guardado.
 - Ratón virtual: mueve el cursor de Windows con la mano, clic con un pellizco, arrastrar y clic derecho.
+- Reconocimiento de identidad: te registras una vez y luego el programa dice tu nombre al verte.
 - Reconocimiento de 7 gestos: puño, mano abierta, apuntar arriba, pulgar arriba/abajo, victoria y "te quiero".
 - Partículas con física (gravedad, rozamiento, brillo) que siguen el movimiento de los dedos. Pellizco = explosión.
 - Todo se activa y desactiva con el teclado.
@@ -89,6 +90,17 @@ python paso10_raton.py
 
 Solo hace falta mover la mano dentro del recuadro de la vista previa. `p` pausa o reanuda el control y `q` sale. **Parada de emergencia:** lleva el ratón físico a una esquina de la pantalla.
 
+## Reconocimiento de identidad
+
+```powershell
+python paso11_reconocer.py registrar TuNombre   # una vez: guarda 15 muestras de tu cara
+python paso11_reconocer.py                     # reconoce a las personas registradas
+```
+
+Usa los modelos YuNet (detección) y SFace (reconocimiento) de OpenCV. Cada cara se convierte en 128 números (*embedding*) y se compara por similitud coseno: a partir de 0.363 se considera la misma persona.
+
+> ⚠️ **Seguridad y privacidad:** no sirve como sistema de acceso, porque se engaña con una foto (no tiene detección de vida). Las caras registradas (`caras/`) son datos biométricos: están en el `.gitignore` para que nunca se suban al repo.
+
 ## Estructura
 
 Cada paso se puede ejecutar por separado, y `sistema.py` los une:
@@ -104,6 +116,7 @@ Cada paso se puede ejecutar por separado, y `sistema.py` los une:
 | `paso8_pintar.py` | Pintar en el aire |
 | `paso9_juego.py` | Minijuego de bolas de luz |
 | `paso10_raton.py` | Ratón virtual |
+| `paso11_reconocer.py` | Reconocimiento de identidad |
 | `sistema.py` | Todo junto |
 
 ## Cómo funciona
