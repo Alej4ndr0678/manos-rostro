@@ -1,0 +1,68 @@
+# Detección de manos y rostro en tiempo real
+
+Sistema en Python que usa la webcam para detectar **rostros** y **manos**, contar los **dedos levantados** y generar **partículas** que salen de las puntas de los dedos.
+
+Hecho con [OpenCV](https://opencv.org/) (cámara y dibujo) y [MediaPipe](https://ai.google.dev/edge/mediapipe) (modelos de detección, API *Tasks*).
+
+## Funciones
+
+- Detección de hasta 2 manos con 21 puntos cada una y su lado (izquierda/derecha).
+- Detección de rostros con caja, % de confianza y 6 puntos clave.
+- Contador de dedos (0 a 5 por mano), con ángulos en 3D para que funcione con la mano girada.
+- Partículas con física (gravedad, rozamiento, brillo) que siguen el movimiento de los dedos. Pellizco = explosión.
+- Todo se activa y desactiva con el teclado.
+
+## Requisitos
+
+- Python 3.9 a 3.14 (probado con 3.13)
+- Una webcam
+
+## Instalación (Windows / PowerShell)
+
+```powershell
+git clone https://github.com/Alej4ndr0678/manos-rostro.git
+cd manos-rostro
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+> Si PowerShell bloquea `Activate.ps1`, ejecuta una vez `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
+
+Los modelos de MediaPipe (`hand_landmarker.task` y `blaze_face_short_range.tflite`) se descargan solos la primera vez.
+
+## Uso
+
+```powershell
+python sistema.py
+```
+
+| Tecla | Acción |
+|-------|--------|
+| `r` | Rostro on/off |
+| `m` | Esqueleto de manos on/off |
+| `c` | Contador de dedos on/off |
+| `d` | Depuración de dedos (`P I C A M`) |
+| `p` | Partículas on/off |
+| `f` | Fondo negro on/off |
+| `q` | Salir |
+
+## Estructura
+
+Cada paso se puede ejecutar por separado, y `sistema.py` los une:
+
+| Archivo | Qué hace |
+|---------|----------|
+| `paso1_webcam.py` | Prueba que OpenCV abre la cámara |
+| `paso2_manos.py` | Detección de manos |
+| `paso3_rostro.py` | Detección de rostro |
+| `paso5_dedos.py` | Contador de dedos |
+| `paso6_particulas.py` | Efecto de partículas |
+| `sistema.py` | Todo junto |
+
+## Cómo funciona
+
+1. OpenCV lee un frame de la webcam y lo voltea (modo espejo).
+2. Se convierte de BGR a RGB y se pasa a los detectores de MediaPipe.
+3. MediaPipe devuelve las coordenadas (normalizadas de 0 a 1) de manos y rostro.
+4. Se pasan a píxeles y OpenCV dibuja encima.
