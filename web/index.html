@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Manos y Rostro</title>
-  <meta name="description" content="Detección de manos y rostro en tiempo real en el navegador con MediaPipe: dedos, gestos, partículas, pintar en el aire, un minijuego, un avatar que imita tu cara, un instrumento musical y objetos 3D que agarras con las manos.">
+  <meta name="description" content="Detección de manos y rostro en tiempo real en el navegador con MediaPipe: dedos, gestos, partículas, pintar en el aire, un minijuego, un avatar que imita tu cara, un instrumento musical objetos 3D que agarras con las manos y Pong.">
   <link rel="stylesheet" href="estilos.css">
 </head>
 <body>
@@ -34,6 +34,7 @@
         <button data-modo="avatar" aria-pressed="false">5 · Avatar</button>
         <button data-modo="musica" aria-pressed="false">6 · Música</button>
         <button data-modo="objetos" aria-pressed="false">7 · 3D</button>
+        <button data-modo="pong" aria-pressed="false">8 · Pong</button>
       </div>
 
       <div class="opciones">
@@ -89,6 +90,12 @@
           <strong>Gira la muñeca</strong> para girarlo. Agárralo con <strong>las dos manos</strong> y sepáralas para hacerlo más grande.
           Suéltalo en movimiento y saldrá <strong>lanzado</strong>.</p>
         <button id="reiniciar-objetos">Recolocar objetos</button>
+      </div>
+
+      <div id="ayuda-pong" class="ayuda" hidden>
+        <p>🏓 Sube y baja la mano para mover tu pala: la mano de la <strong>mitad izquierda</strong> mueve la pala izquierda y la de la
+          <strong>derecha</strong>, la derecha. Juega contra un amigo o, con una sola mano, contra el ordenador. Gana quien llegue a 7.</p>
+        <button id="nueva-pong">Nueva partida</button>
       </div>
     </section>
   </main>
