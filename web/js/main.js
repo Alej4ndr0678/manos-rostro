@@ -10,6 +10,7 @@ import { dibujarAvatar, ESTILOS, parametros, pose, Suavizado } from "./avatar.js
 import { dedosLevantados, Suavizador } from "./dedos.js";
 import { crearEscena, crearHolograma, OBJETOS } from "./escena3d.js";
 import { centrarMalla, Rotador } from "./holograma.js";
+import { anclas, Arcoiris, BOCA_ABIERTA, dibujarArcoiris, dibujarFiltro, FILTROS } from "./filtros.js";
 import { Juego } from "./juego.js";
 import { leerMano, Manipulador } from "./manipular.js";
 import { Ninja, VIDAS } from "./ninja.js";
@@ -61,6 +62,9 @@ let malla = null; // malla facial (solo se carga al entrar en el modo avatar)
 let cargandoMalla = null;
 let resultadoMalla = null;
 let estiloAvatar = 0;
+const ESTILOS_TODOS = [...ESTILOS, ...FILTROS]; // personajes que tapan la cara + filtros encima de ella
+const arcoiris = []; // uno por cara
+let anteriorAvatar = null;
 const suavizadosAvatar = [];
 let sinte = null; // se crea al entrar en el modo musica (el navegador exige un clic antes de sonar)
 const bateria = new Bateria();
@@ -366,9 +370,9 @@ function cargarMalla() {
 }
 
 function cambiarEstilo(i) {
-  estiloAvatar = (i + ESTILOS.length) % ESTILOS.length;
+  estiloAvatar = (i + ESTILOS_TODOS.length) % ESTILOS_TODOS.length;
   for (const boton of document.querySelectorAll("[data-estilo]")) {
-    boton.setAttribute("aria-pressed", String(boton.dataset.estilo === ESTILOS[estiloAvatar]));
+    boton.setAttribute("aria-pressed", String(boton.dataset.estilo === ESTILOS_TODOS[estiloAvatar]));
   }
 }
 
@@ -385,14 +389,26 @@ function dibujarAvatares() {
     ctx.fillStyle = fondo;
     ctx.fillRect(0, 0, lienzo.width, lienzo.height);
   }
+  const ahora = performance.now() / 1000;
+  const dt = anteriorAvatar === null ? 1 / 60 : ahora - anteriorAvatar;
+  anteriorAvatar = ahora;
   resultadoMalla.faceLandmarks.forEach((puntos, i) => {
     const px = puntos.map(aPixeles);
+    // Cada cara con un estilo distinto: la primera el elegido, las demas los siguientes
+    const estilo = ESTILOS_TODOS[(estiloAvatar + i) % ESTILOS_TODOS.length];
+    if (FILTROS.includes(estilo)) {
+      // Filtro: se dibuja encima de la cara de verdad, siguiendo sus puntos
+      const a = anclas(px);
+      arcoiris[i] ??= new Arcoiris();
+      const abierta = estilo !== "perro" && a.abertura > BOCA_ABIERTA;
+      dibujarArcoiris(ctx, arcoiris[i].actualizar(abierta, a.boca, a.abajo, a.altoCara, dt));
+      dibujarFiltro(ctx, estilo, a, ahora);
+      return;
+    }
     const g = pose(px);
     const formas = Object.fromEntries(resultadoMalla.faceBlendshapes[i].categories.map((c) => [c.categoryName, c.score]));
     suavizadosAvatar[i] ??= new Suavizado(0.5);
     const p = suavizadosAvatar[i].actualizar({ ...parametros(formas), yaw: g.yaw, pitch: g.pitch, roll: g.roll });
-    // Cada cara con un estilo distinto: la primera el elegido, las demas los siguientes
-    const estilo = ESTILOS[(estiloAvatar + i) % ESTILOS.length];
     const radio = Math.max(g.ancho * 0.62, g.alto * 0.55) * (soloAvatar ? 1.2 : 1);
     // Que no se salga por arriba (las orejas y la antena sobresalen)
     const y = soloAvatar ? Math.max(g.y, radio * 1.45) : g.y;
@@ -1106,7 +1122,7 @@ for (const boton of document.querySelectorAll("[data-instrumento]")) {
   boton.addEventListener("click", () => cambiarInstrumento(boton.dataset.instrumento));
 }
 for (const boton of document.querySelectorAll("[data-estilo]")) {
-  boton.addEventListener("click", () => cambiarEstilo(ESTILOS.indexOf(boton.dataset.estilo)));
+  boton.addEventListener("click", () => cambiarEstilo(ESTILOS_TODOS.indexOf(boton.dataset.estilo)));
 }
 $("foto-avatar").addEventListener("click", () => {
   const enlace = document.createElement("a");
