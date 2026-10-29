@@ -8,7 +8,9 @@ import {
 } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.1/vision_bundle.mjs";
 import { dibujarAvatar, ESTILOS, parametros, pose, Suavizado } from "./avatar.js";
 import { dedosLevantados, Suavizador } from "./dedos.js";
+import { crearEscena, OBJETOS } from "./escena3d.js";
 import { Juego } from "./juego.js";
+import { Manipulador } from "./manipular.js";
 import { Bateria, nota, NUM_NOTAS, PADS, Sintetizador, Theremin } from "./musica.js";
 import { Particulas, PUNTAS } from "./particulas.js";
 import { ALTO_BARRA, PALETA, Pizarra, ZONA_SELECCION } from "./pintar.js";
@@ -59,6 +61,10 @@ const bateria = new Bateria();
 const theremin = new Theremin();
 let instrumento = "sintetizador";
 const ondas = []; // circulos que se expanden al golpear un pad
+let escena3d = null; // Three.js solo se carga al entrar en el modo 3D
+let cargandoEscena = null;
+let manipulador = null;
+let anteriorObjetos = null;
 const particulas = new Particulas();
 const suavizador = new Suavizador();
 let ultimoTiempoVideo = -1;
@@ -481,6 +487,61 @@ function dibujarMusica(manos, ahora) {
   if (!sinte) texto("Pulsa el botón «6 · Música» para activar el sonido", 16, H - 20, 22, "#f87171");
 }
 
+// ---------- 3D ----------
+
+function cargarEscena() {
+  cargandoEscena ??= crearEscena(lienzo.width, lienzo.height)
+    .then((e) => {
+      escena3d = e;
+    })
+    .catch((error) => {
+      console.error(error);
+      estado("No se pudo cargar la escena 3D (hace falta WebGL).");
+    });
+  return cargandoEscena;
+}
+
+function reiniciarObjetos() {
+  manipulador = new Manipulador(OBJETOS, lienzo.width / lienzo.height);
+}
+
+function dibujarObjetos(manos, ahora) {
+  if (!escena3d) {
+    texto("Cargando la escena 3D…", 16, 44, 28);
+    return;
+  }
+  if (!manipulador) reiniciarObjetos();
+  const dt = anteriorObjetos === null ? 1 / 60 : Math.min(ahora - anteriorObjetos, 0.1);
+  anteriorObjetos = ahora;
+  const W = lienzo.width;
+  const H = lienzo.height;
+  const agarrados = manipulador.actualizar(
+    manos.map((m) => ({ lado: m.lado, puntos: m.puntos.map((p) => ({ x: p.x / W, y: p.y / H })) })),
+    dt,
+  );
+  ctx.drawImage(escena3d.dibujar(manipulador.objetos, agarrados), 0, 0, W, H);
+
+  // Pinza de cada mano: circulo vacio = abierta, lleno = pellizcando
+  for (const m of manos) {
+    const x = (m.puntos[4].x + m.puntos[8].x) / 2;
+    const y = (m.puntos[4].y + m.puntos[8].y) / 2;
+    const pellizca = manipulador.pellizcos.get(m.lado);
+    ctx.strokeStyle = ctx.fillStyle = pellizca ? "#22d3ee" : "rgba(255,255,255,0.8)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(x, y, pellizca ? 10 : 18, 0, Math.PI * 2);
+    if (pellizca) ctx.fill();
+    else ctx.stroke();
+    for (const i of [4, 8]) {
+      ctx.beginPath();
+      ctx.arc(m.puntos[i].x, m.puntos[i].y, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  const dos = manipulador.dosManos;
+  if (dos) texto(`×${dos.obj.escala.toFixed(1)}`, dos.obj.x * W + 20, dos.obj.y * H - 60, 32, "#fbbf24");
+}
+
 function bucle() {
   const ahora = performance.now();
   // Solo detectamos cuando la camara da un frame nuevo
@@ -511,6 +572,8 @@ function bucle() {
   if (modo === "particulas") {
     particulas.procesar(manos);
     particulas.actualizarYDibujar(ctx);
+  } else if (modo === "objetos") {
+    dibujarObjetos(manos, ahora / 1000);
   } else if (modo === "musica") {
     dibujarMusica(manos, ahora / 1000);
   } else if (modo === "juego") {
@@ -532,7 +595,7 @@ function bucle() {
   }
 
   for (const mano of manos) {
-    if ($("ver-manos").checked && !["juego", "avatar", "musica"].includes(modo)) dibujarEsqueleto(mano);
+    if ($("ver-manos").checked && !["juego", "avatar", "musica", "objetos"].includes(modo)) dibujarEsqueleto(mano);
     const n = mano.dedos.filter(Boolean).length;
     total += n;
     if (modo === "deteccion") {
@@ -564,6 +627,8 @@ function cambiarModo(nuevo) {
   $("ayuda-juego").hidden = modo !== "juego";
   $("ayuda-avatar").hidden = modo !== "avatar";
   $("ayuda-musica").hidden = modo !== "musica";
+  $("ayuda-objetos").hidden = modo !== "objetos";
+  if (modo === "objetos") cargarEscena();
   if (modo === "musica") activarAudio();
   else sinte?.tocar(null);
   if (modo === "avatar") cargarMalla();
@@ -583,7 +648,7 @@ $("guardar").addEventListener("click", () => {
 $("jugar").addEventListener("click", empezarPartida);
 document.addEventListener("keydown", (e) => {
   if ($("controles").hidden) return;
-  const modos = { 1: "deteccion", 2: "particulas", 3: "pintar", 4: "juego", 5: "avatar", 6: "musica" };
+  const modos = { 1: "deteccion", 2: "particulas", 3: "pintar", 4: "juego", 5: "avatar", 6: "musica", 7: "objetos" };
   if (modos[e.key]) cambiarModo(modos[e.key]);
   if (e.key === " " && modo === "juego") {
     e.preventDefault(); // que la barra espaciadora no haga scroll
@@ -591,6 +656,7 @@ document.addEventListener("keydown", (e) => {
   }
   if (e.key.toLowerCase() === "a" && modo === "avatar") cambiarEstilo(estiloAvatar + 1);
 });
+$("reiniciar-objetos").addEventListener("click", reiniciarObjetos);
 for (const boton of document.querySelectorAll("[data-instrumento]")) {
   boton.addEventListener("click", () => cambiarInstrumento(boton.dataset.instrumento));
 }
