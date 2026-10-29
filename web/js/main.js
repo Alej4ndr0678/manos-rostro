@@ -10,7 +10,7 @@ import { dibujarAvatar, ESTILOS, parametros, pose, Suavizado } from "./avatar.js
 import { dedosLevantados, Suavizador } from "./dedos.js";
 import { crearEscena, crearEscultura, crearHolograma, OBJETOS } from "./escena3d.js";
 import { Escultura, MAX_PUNTOS } from "./escultura.js";
-import { centrarMalla, Rotador } from "./holograma.js";
+import { centrarMalla, Explosion, Rotador } from "./holograma.js";
 import { anclas, Arcoiris, BOCA_ABIERTA, dibujarArcoiris, dibujarFiltro, FILTROS } from "./filtros.js";
 import { Juego } from "./juego.js";
 import { leerMano, Manipulador } from "./manipular.js";
@@ -89,6 +89,8 @@ const rotador = new Rotador();
 let anteriorHolograma = null;
 let pellizcoHolograma = false;
 let congelado = false;
+const explosion = new Explosion();
+let ultimaMalla = null; // la ultima cara vista (para seguir dibujandola si se congela o se va)
 let escenaEscultura = null; // Three.js, solo al entrar en el modo
 let cargandoEscultura = null;
 let escultura = null;
@@ -886,7 +888,11 @@ function dibujarHolograma(manos, ahora) {
   }
   const { rotX, rotY } = rotador.actualizar(pinza, dt);
   const cara = resultadoMalla?.faceLandmarks[0];
-  ctx.drawImage(holograma.dibujar(cara ? centrarMalla(cara, W / H) : null, rotX, rotY, ahora), 0, 0, W, H);
+  if (cara) ultimaMalla = centrarMalla(cara, W / H);
+  // Abrir mucho la boca hace explotar el holograma
+  const jawOpen = resultadoMalla?.faceBlendshapes?.[0]?.categories.find((c) => c.categoryName === "jawOpen")?.score ?? 0;
+  explosion.actualizar(jawOpen, dt);
+  ctx.drawImage(holograma.dibujar(ultimaMalla && explosion.aplicar(ultimaMalla), rotX, rotY, ahora), 0, 0, W, H);
 
   // Lineas de escaneo, como en las peliculas
   ctx.fillStyle = "rgba(34, 211, 238, 0.05)";

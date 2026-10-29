@@ -83,3 +83,43 @@ export class Rotador {
     return { rotX: this.rotX, rotY: this.rotY };
   }
 }
+
+// Al abrir mucho la boca, el holograma "explota": cada punto sale volando hacia fuera
+// (desde el centro de la cara) y vuelve a su sitio al cerrarla.
+export const UMBRAL_EXPLOSION = 0.5; // jawOpen de MediaPipe (0 = cerrada, 1 = muy abierta)
+
+export class Explosion {
+  constructor(numPuntos = 478, azar = Math.random) {
+    // Cada punto vuela a una velocidad distinta, para que no parezca solo un zoom
+    this.fuerza = Float32Array.from({ length: numPuntos }, () => 0.6 + azar() * 1.4);
+    this.nivel = 0; // 0 = cara normal, 1 = del todo explotada
+  }
+
+  // jawOpen = lo abierta que esta la boca (0 a 1). Devuelve el nivel actual.
+  actualizar(jawOpen, dt) {
+    const objetivo = jawOpen > UMBRAL_EXPLOSION ? 1 : 0;
+    // Sale disparada rapido y se recompone mas despacio
+    const rapidez = objetivo > this.nivel ? 4 : 1.5;
+    this.nivel += (objetivo - this.nivel) * Math.min(1, rapidez * Math.min(dt, 0.1));
+    if (this.nivel < 0.001) this.nivel = 0;
+    return this.nivel;
+  }
+
+  // malla = Float32Array de centrarMalla (centrada en 0). Devuelve una copia con los puntos desplazados.
+  aplicar(malla) {
+    if (this.nivel === 0) return malla;
+    const salida = new Float32Array(malla.length);
+    const distancia = this.nivel * this.nivel * 1.2; // empieza suave y luego se dispara
+    for (let i = 0; i < malla.length / 3; i++) {
+      const x = malla[i * 3];
+      const y = malla[i * 3 + 1];
+      const z = malla[i * 3 + 2];
+      const largo = Math.hypot(x, y, z) || 1;
+      const d = distancia * this.fuerza[i];
+      salida[i * 3] = x + (x / largo) * d;
+      salida[i * 3 + 1] = y + (y / largo) * d + d * 0.3; // y un poco hacia arriba, como chispas
+      salida[i * 3 + 2] = z + (z / largo) * d;
+    }
+    return salida;
+  }
+}
