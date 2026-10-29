@@ -5,6 +5,7 @@ import {
   FaceLandmarker,
   FilesetResolver,
   GestureRecognizer,
+  PoseLandmarker,
 } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.1/vision_bundle.mjs";
 import { dibujarAvatar, ESTILOS, parametros, pose, Suavizado } from "./avatar.js";
 import { dedosLevantados, Suavizador } from "./dedos.js";
@@ -13,6 +14,7 @@ import { Escultura, MAX_PUNTOS } from "./escultura.js";
 import { centrarMalla, Explosion, Rotador } from "./holograma.js";
 import { anclas, Arcoiris, BOCA_ABIERTA, dibujarArcoiris, dibujarFiltro, FILTROS } from "./filtros.js";
 import { Juego } from "./juego.js";
+import { Chispas, EXTREMOS, visibles } from "./neon.js";
 import { leerMano, Manipulador } from "./manipular.js";
 import { Ninja, VIDAS } from "./ninja.js";
 import { ESPERA_EMPEZAR, MANTENER, Reto, VIDAS as VIDAS_RETO } from "./reto.js";
@@ -26,6 +28,8 @@ const MODELO_GESTOS =
   "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/latest/gesture_recognizer.task";
 const MODELO_MALLA =
   "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task";
+const MODELO_POSE =
+  "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task";
 const MODELO_ROSTRO =
   "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/latest/blaze_face_short_range.tflite";
 
@@ -43,7 +47,7 @@ const GESTOS = {
 const LADO = { Left: "Izquierda", Right: "Derecha" };
 const COLOR_LADO = { Izquierda: "#38bdf8", Derecha: "#fb923c" };
 
-const MODOS = ["deteccion", "particulas", "pintar", "juego", "avatar", "musica", "objetos", "pong", "ninja", "holograma", "escultura", "reto"];
+const MODOS = ["deteccion", "particulas", "pintar", "juego", "avatar", "musica", "objetos", "pong", "ninja", "holograma", "escultura", "reto", "neon"];
 // Modos en los que se pueden ver el esqueleto de las manos y las cajas de los rostros
 const MODOS_CON_OPCIONES = ["deteccion", "particulas", "pintar"];
 const $ = (id) => document.getElementById(id);
@@ -98,6 +102,13 @@ let escultura = null;
 let anteriorEscultura = null;
 let pellizcoEscultura = false;
 let reto = null;
+let detectorPose = null; // solo se carga al entrar en el modo neon
+let cargandoPose = null;
+let resultadoPose = null;
+const capaNeon = document.createElement("canvas"); // aqui se acumula la estela
+const ctxNeon = capaNeon.getContext("2d");
+const chispas = new Chispas();
+let anteriorNeon = null;
 let anteriorReto = null;
 let destelloReto = { color: null, hasta: 0 }; // verde al acertar, rojo al fallar
 const particulas = new Particulas();
@@ -1046,6 +1057,96 @@ function dibujarReto(manos, ahora) {
   ctx.fillText(vidas, W - ctx.measureText(vidas).width - 16, H - 60);
 }
 
+// ---------- Cuerpo de neon ----------
+
+function cargarPose() {
+  cargandoPose ??= (async () => {
+    estado("Cargando el modelo del cuerpo…");
+    for (const delegate of [delegado, "CPU"]) {
+      try {
+        detectorPose = await PoseLandmarker.createFromOptions(archivosVision, {
+          baseOptions: { modelAssetPath: MODELO_POSE, delegate },
+          runningMode: "VIDEO",
+          numPoses: 2,
+        });
+        estado(`Funcionando (${delegado})`);
+        return;
+      } catch (error) {
+        console.warn(`Modelo del cuerpo con ${delegate}:`, error);
+      }
+    }
+    estado("No se pudo cargar el modelo del cuerpo.");
+  })();
+  return cargandoPose;
+}
+
+function dibujarNeon(ahora) {
+  const W = lienzo.width;
+  const H = lienzo.height;
+  ctx.fillStyle = "rgba(0, 0, 0, 0.6)"; // la camara casi a oscuras, para que brille la luz
+  ctx.fillRect(0, 0, W, H);
+  if (!detectorPose) {
+    textoCentrado("Cargando el modelo del cuerpo…", H / 2, 32, "#67e8f9");
+    return;
+  }
+  const dt = anteriorNeon === null ? 1 / 60 : ahora - anteriorNeon;
+  anteriorNeon = ahora;
+  if (capaNeon.width !== W || capaNeon.height !== H) {
+    capaNeon.width = W;
+    capaNeon.height = H;
+  }
+  // La estela: lo dibujado antes se va borrando poco a poco
+  ctxNeon.globalCompositeOperation = "destination-out";
+  ctxNeon.fillStyle = "rgba(0, 0, 0, 0.18)";
+  ctxNeon.fillRect(0, 0, W, H);
+  ctxNeon.globalCompositeOperation = "source-over";
+
+  const tono = (ahora * 40) % 360; // el color va cambiando solo
+  const extremos = [];
+  const cuerpos = resultadoPose?.landmarks ?? [];
+  cuerpos.forEach((puntos, n) => {
+    const px = puntos.map(aPixeles);
+    const vistos = visibles(puntos);
+    ctxNeon.lineCap = "round";
+    ctxNeon.shadowBlur = 25;
+    PoseLandmarker.POSE_CONNECTIONS.forEach(({ start, end }, i) => {
+      if (start < 11 || !vistos.has(start) || !vistos.has(end)) return; // la cara (0-10) va aparte
+      const color = `hsl(${(tono + n * 180 + i * 8) % 360}, 100%, 60%)`;
+      ctxNeon.strokeStyle = ctxNeon.shadowColor = color;
+      ctxNeon.lineWidth = 10;
+      ctxNeon.beginPath();
+      ctxNeon.moveTo(px[start].x, px[start].y);
+      ctxNeon.lineTo(px[end].x, px[end].y);
+      ctxNeon.stroke();
+    });
+    // Cabeza: un circulo alrededor de la nariz, del tamano de la distancia entre las orejas
+    if (vistos.has(0) && vistos.has(7) && vistos.has(8)) {
+      const radio = Math.hypot(px[7].x - px[8].x, px[7].y - px[8].y) * 0.9;
+      ctxNeon.strokeStyle = ctxNeon.shadowColor = `hsl(${(tono + n * 180) % 360}, 100%, 70%)`;
+      ctxNeon.lineWidth = 8;
+      ctxNeon.beginPath();
+      ctxNeon.arc(px[0].x, px[0].y, radio, 0, Math.PI * 2);
+      ctxNeon.stroke();
+    }
+    for (const [nombre, i] of Object.entries(EXTREMOS)) {
+      if (vistos.has(i)) extremos.push({ clave: `${n}-${nombre}`, x: px[i].x / W, y: px[i].y / H });
+    }
+  });
+  ctxNeon.shadowBlur = 0;
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  ctx.drawImage(capaNeon, 0, 0);
+  // Chispas de manos y pies
+  for (const c of chispas.actualizar(extremos, dt, W / H)) {
+    ctx.fillStyle = `hsla(${(tono + c.tono) % 360}, 100%, 70%, ${c.vida})`;
+    ctx.beginPath();
+    ctx.arc(c.x * W, c.y * H, 3 + c.vida * 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+  if (!cuerpos.length) textoCentrado("Aléjate de la cámara para que se vea tu cuerpo 🕺", H - 30, 28);
+}
+
 function bucle() {
   const ahora = performance.now();
   // Solo detectamos cuando la camara da un frame nuevo
@@ -1054,6 +1155,7 @@ function bucle() {
     resultadoManos = reconocedor.recognizeForVideo(video, ahora);
     // (en los juegos no se busca el rostro: no se dibuja y asi va mas fluido)
     resultadoRostro = verRostro() ? detectorRostro.detectForVideo(video, ahora) : null;
+    resultadoPose = modo === "neon" && detectorPose ? detectorPose.detectForVideo(video, ahora) : null;
     resultadoMalla = (modo === "avatar" || (modo === "holograma" && !congelado)) && malla ? malla.detectForVideo(video, ahora) : null;
   }
   fps = 0.9 * fps + 0.1 * (1000 / Math.max(ahora - anterior, 1));
@@ -1077,6 +1179,8 @@ function bucle() {
   if (modo === "particulas") {
     particulas.procesar(manos);
     particulas.actualizarYDibujar(ctx);
+  } else if (modo === "neon") {
+    dibujarNeon(ahora / 1000);
   } else if (modo === "reto") {
     dibujarReto(manos, ahora / 1000);
   } else if (modo === "escultura") {
@@ -1155,6 +1259,8 @@ function cambiarModo(nuevo) {
   $("ayuda-holograma").hidden = modo !== "holograma";
   $("ayuda-escultura").hidden = modo !== "escultura";
   $("ayuda-reto").hidden = modo !== "reto";
+  $("ayuda-neon").hidden = modo !== "neon";
+  if (modo === "neon") cargarPose();
   if (modo === "escultura") cargarEscultura();
   if (modo === "holograma") {
     cargarMalla();
