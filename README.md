@@ -1,5 +1,7 @@
 # Detección de manos y rostro en tiempo real
 
+[![Pruebas](https://github.com/Alej4ndr0678/manos-rostro/actions/workflows/pruebas.yml/badge.svg)](https://github.com/Alej4ndr0678/manos-rostro/actions/workflows/pruebas.yml)
+
 Sistema en Python que usa la webcam para detectar **rostros** y **manos**, contar los **dedos levantados** y generar **partículas** que salen de las puntas de los dedos.
 
 Hecho con [OpenCV](https://opencv.org/) (cámara y dibujo) y [MediaPipe](https://ai.google.dev/edge/mediapipe) (modelos de detección, API *Tasks*).
@@ -122,6 +124,21 @@ Usa los modelos YuNet (detección) y SFace (reconocimiento) de OpenCV. Cada cara
 
 > ⚠️ **Seguridad y privacidad:** no sirve como sistema de acceso, porque se engaña con una foto (no tiene detección de vida). Las caras registradas (`caras/`) son datos biométricos: están en el `.gitignore` para que nunca se suban al repo.
 
+## Pruebas
+
+Las pruebas comprueban que todo sigue funcionando después de cada cambio, sin tener que abrir la webcam:
+
+```powershell
+pip install -r requirements-dev.txt
+python -m pytest                    # todas (la primera vez descarga modelos y fotos de ejemplo)
+python -m pytest -m "not modelos"   # solo las rápidas, sin modelos ni internet
+```
+
+- **Rápidas:** usan manos "inventadas" (21 puntos con coordenadas puestas a mano) para probar el contador de dedos, pintar, el minijuego, el ratón virtual y los hilos.
+- **Con modelos:** usan fotos de ejemplo de MediaPipe para comprobar que los gestos, las manos, el rostro y la identidad se detectan de verdad, y arrancan `sistema.py` completo con una cámara simulada.
+
+GitHub Actions las ejecuta solo en cada push y en cada pull request, en Windows y en Linux (`.github/workflows/pruebas.yml`). La insignia de arriba se pone verde si todo pasa.
+
 ## Estructura
 
 Cada paso se puede ejecutar por separado, y `sistema.py` los une:
@@ -142,6 +159,7 @@ Cada paso se puede ejecutar por separado, y `sistema.py` los une:
 | `plataforma.py` | Diferencias entre Windows y Linux (cámara, ratón) |
 | `instalar_linux.sh` | Instalación en Linux |
 | `sistema.py` | Todo junto |
+| `tests/` | Pruebas automáticas (`pytest`) |
 
 ## Rendimiento
 
