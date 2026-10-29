@@ -195,6 +195,28 @@ Cómo funciona:
 
 Consejos: graba cada seña con buena luz, girando y acercando un poco la mano. Si `entrenar` muestra que dos señas se confunden, graba más ejemplos de ellas. Las señas con movimiento (como la J o la Z) no se pueden reconocer así, porque el modelo solo ve una foto de la mano.
 
+## Contador de ejercicio
+
+```powershell
+python paso15_ejercicio.py              # sentadillas
+python paso15_ejercicio.py flexion
+python paso15_ejercicio.py curl
+```
+
+Usa el modelo de **pose** de MediaPipe (33 puntos del cuerpo) y mide el ángulo de una articulación:
+
+| Ejercicio | Ángulo que mide | Cuenta una repetición cuando... |
+|-----------|-----------------|---------------------------------|
+| Sentadilla | Rodilla (cadera, rodilla, tobillo) | bajas de 100° y vuelves por encima de 160° |
+| Flexión | Codo (hombro, codo, muñeca) | bajas de 90° y vuelves por encima de 150° |
+| Curl de bíceps | Codo | cierras el brazo por debajo de 50° y lo estiras por encima de 150° |
+
+- Si empiezas a bajar pero vuelves sin llegar abajo, **no cuenta** y te avisa ("Baja más").
+- **Postura:** en la sentadilla avisa si inclinas demasiado la espalda; en la flexión, si la cadera se hunde o se levanta.
+- La barra de la derecha muestra cuánto has bajado (se pone verde al llegar abajo), y el panel muestra las repeticiones y los segundos que tardas en cada una.
+- Teclas: `1` sentadilla, `2` flexión, `3` curl, `r` reiniciar y `q` salir.
+- **Consejo:** ponte **de lado** a la cámara y que se te vea el cuerpo entero. El programa usa el lado del cuerpo que mejor se ve.
+
 ## Versión web
 
 La carpeta `web/` tiene una versión que funciona en el navegador con [MediaPipe para JavaScript](https://ai.google.dev/edge/mediapipe/solutions/vision/gesture_recognizer/web_js): detección de manos, dedos, gestos y rostro, partículas y pintar en el aire. Se publica sola en **GitHub Pages**: https://alej4ndr0678.github.io/manos-rostro/
@@ -243,6 +265,7 @@ Cada paso se puede ejecutar por separado, y `sistema.py` los une:
 | `paso12_desbloqueo.py` | Desbloqueo con cara, prueba de vida y PIN de dedos |
 | `paso13_control.py` | Control de música, volumen y diapositivas con gestos |
 | `paso14_senas.py` | Traductor de lengua de señas entrenable |
+| `paso15_ejercicio.py` | Contador de ejercicio con la pose del cuerpo |
 | `hilos.py` | Cámara y detección en hilos separados (más FPS) |
 | `plataforma.py` | Diferencias entre Windows y Linux (cámara, ratón) |
 | `instalar_linux.sh` | Instalación en Linux |

@@ -18,6 +18,7 @@ FOTOS = {
     "apuntar.jpg": "https://storage.googleapis.com/mediapipe-tasks/gesture_recognizer/pointing_up.jpg",
     "dos_manos.jpg": "https://storage.googleapis.com/mediapipe-tasks/hand_landmarker/woman_hands.jpg",
     "retrato.jpg": "https://storage.googleapis.com/mediapipe-assets/portrait.jpg",
+    "pose.jpg": "https://storage.googleapis.com/mediapipe-assets/pose.jpg",
 }
 
 
@@ -248,3 +249,24 @@ def test_senas_con_manos_reales(cache):
         espejo = [SimpleNamespace(x=1 - p.x, y=p.y, z=p.z) for p in puntos]
         otro_lado = "Izquierda" if lado == "Derecha" else "Derecha"
         assert senas.predecir(modelo, senas.caracteristicas(espejo, otro_lado))[0] == letra
+
+
+def test_pose_guerrero_de_yoga(cache):
+    # Foto de la postura del guerrero: brazos estirados, una rodilla doblada y la otra recta
+    import paso15_ejercicio as ej
+    ej.descargar_modelo()
+    detector = ej.crear_detector()
+    imagen = foto("pose.jpg")
+    try:
+        resultado = ej.detectar(detector, imagen, 0)
+    finally:
+        detector.close()
+    assert len(resultado.pose_landmarks) == 1
+    puntos = resultado.pose_landmarks[0]
+    alto, ancho = imagen.shape[:2]
+    px = ej.a_pixeles(puntos, ancho, alto)
+    codos = [ej.angulo(px[ej.HOMBRO[l]], px[ej.CODO[l]], px[ej.MUNECA[l]]) for l in ("izq", "der")]
+    rodillas = sorted(ej.angulo(px[ej.CADERA[l]], px[ej.RODILLA[l]], px[ej.TOBILLO[l]]) for l in ("izq", "der"))
+    assert all(c > 150 for c in codos), f"brazos estirados: {codos}"
+    assert rodillas[0] < 130, f"una rodilla doblada: {rodillas}"
+    assert rodillas[1] > 150, f"la otra recta: {rodillas}"
