@@ -154,3 +154,64 @@ def test_sistema_completo_arranca_y_sale_con_q(cache, monkeypatch):
     sistema.main()
     assert sistema._ultimo_detector.ultimo()[0] >= 5, "el detector no llego a procesar frames"
     assert len(mostrados) >= 5
+
+
+def test_malla_facial_ojos_abiertos_y_de_frente(cache):
+    import paso12_desbloqueo as des
+    des.descargar_modelos()
+    malla = des.crear_malla()
+    try:
+        parpadeo, giro = des.medir_vida(malla, foto("retrato.jpg"), 0)
+    finally:
+        malla.close()
+    assert parpadeo < des.OJO_ABIERTO
+    assert des.direccion_giro(giro) is None
+
+
+def test_desbloqueo_con_una_foto_es_denegado(cache, monkeypatch, tmp_path):
+    # El ataque clasico: ensenar una foto de la persona registrada a la camara.
+    # La cara se reconoce, pero la foto no parpadea ni gira: tiene que denegarse.
+    import paso11_reconocer as rec
+    import paso12_desbloqueo as des
+
+    imagen = foto("retrato.jpg")
+    detector, reconocedor = rec.crear_modelos()
+    registrado = rec.embedding(reconocedor, imagen, rec.detectar_caras(detector, imagen)[0])
+
+    monkeypatch.setattr(rec, "cargar_personas", lambda: {"Alejandro": registrado})
+    monkeypatch.setattr(des, "ARCHIVO_PIN", str(tmp_path / "pin.json"))
+    monkeypatch.setattr(des, "ARCHIVO_LOG", str(tmp_path / "accesos.log"))
+    monkeypatch.setattr(des, "TIEMPO_VIDA", 1.5)   # no esperar 12 s en la prueba
+    des.guardar_pin("3142")
+
+    class CamaraFoto:
+        def isOpened(self):
+            return True
+
+        def read(self):
+            time.sleep(0.01)
+            return True, cv2.flip(imagen, 1)   # el programa la voltea otra vez
+
+        def release(self):
+            pass
+
+    monkeypatch.setattr(rec, "abrir_camara", lambda: CamaraFoto())
+    estados = []
+    original = des.Desbloqueo.actualizar
+
+    def espiar(self, obs, ahora):
+        original(self, obs, ahora)
+        estados.append(self.estado)
+
+    monkeypatch.setattr(des.Desbloqueo, "actualizar", espiar)
+    monkeypatch.setattr(des.cv2, "imshow", lambda *a: None)
+    monkeypatch.setattr(des.cv2, "destroyAllWindows", lambda: None)
+    limite = time.monotonic() + 60
+    monkeypatch.setattr(des.cv2, "waitKey",
+                        lambda ms: ord("q") if (estados and estados[-1] == "denegado") or time.monotonic() > limite else 255)
+
+    des.desbloquear()
+    assert "vida" in estados, "la cara de la foto tendria que reconocerse"
+    assert estados[-1] == "denegado"
+    log = (tmp_path / "accesos.log").read_text(encoding="utf-8")
+    assert "prueba de vida" in log

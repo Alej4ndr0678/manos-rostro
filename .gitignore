@@ -29,3 +29,6 @@ caras/
 # Cache de las pruebas (modelos y fotos de ejemplo)
 tests/.cache/
 .pytest_cache/
+
+# Registro de intentos de desbloqueo (paso 12)
+accesos.log

@@ -15,6 +15,7 @@ Hecho con [OpenCV](https://opencv.org/) (cámara y dibujo) y [MediaPipe](https:/
 - Minijuego: explota bolas de luz con los dedos en 60 segundos, con récord guardado.
 - Ratón virtual: mueve el cursor de Windows con la mano, clic con un pellizco, arrastrar y clic derecho.
 - Reconocimiento de identidad: te registras una vez y luego el programa dice tu nombre al verte.
+- Desbloqueo biométrico: cara + prueba de vida al azar (parpadeos y giro de cabeza) + PIN marcado con los dedos.
 - Reconocimiento de 7 gestos: puño, mano abierta, apuntar arriba, pulgar arriba/abajo, victoria y "te quiero".
 - Partículas con física (gravedad, rozamiento, brillo) que siguen el movimiento de los dedos. Pellizco = explosión.
 - Todo se activa y desactiva con el teclado.
@@ -36,7 +37,7 @@ pip install -r requirements.txt
 
 > Si PowerShell bloquea `Activate.ps1`, ejecuta una vez `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
 
-Los modelos de MediaPipe (`gesture_recognizer.task`, `hand_landmarker.task` y `blaze_face_short_range.tflite`) se descargan solos la primera vez.
+Los modelos de MediaPipe (`gesture_recognizer.task`, `hand_landmarker.task`, `face_landmarker.task` y `blaze_face_short_range.tflite`) se descargan solos la primera vez.
 
 ## Instalación (Linux)
 
@@ -124,6 +125,28 @@ Usa los modelos YuNet (detección) y SFace (reconocimiento) de OpenCV. Cada cara
 
 > ⚠️ **Seguridad y privacidad:** no sirve como sistema de acceso, porque se engaña con una foto (no tiene detección de vida). Las caras registradas (`caras/`) son datos biométricos: están en el `.gitignore` para que nunca se suban al repo.
 
+## Desbloqueo biométrico
+
+El reconocimiento del paso 11 se engaña con una foto tuya en el móvil. El paso 12 es un "sistema de acceso" que intenta evitarlo:
+
+```powershell
+python paso11_reconocer.py registrar TuNombre   # una vez: registra tu cara
+python paso12_desbloqueo.py pin                 # una vez: elige un PIN de 4 cifras del 1 al 5
+python paso12_desbloqueo.py                     # desbloquear
+```
+
+1. **Cara:** te tiene que reconocer varios frames seguidos.
+2. **Prueba de vida:** te pide un reto **al azar**, por ejemplo *"Parpadea 2 veces y gira la cabeza a la DERECHA"*. Una foto no parpadea, y un vídeo grabado antes no sabe qué reto va a tocar. Durante todo el proceso tiene que seguir siendo tu cara y solo la tuya.
+3. **PIN con los dedos:** cada cifra es el número de dedos levantados (mantenlos 1 segundo) y entre cifra y cifra cierras el puño.
+
+Detalles de seguridad que se aplican igual que en sistemas reales:
+
+- El PIN no se guarda tal cual: se guarda su **hash con sal** (PBKDF2-SHA256) en `caras/pin.json`, y se compara con `hmac.compare_digest`.
+- Tras **3 fallos** seguidos se **bloquea 30 segundos** (frena la fuerza bruta).
+- Cada intento queda en **`accesos.log`** con fecha, resultado y motivo (auditoría).
+
+**Límites:** frena fotos y vídeos grabados, pero no una máscara 3D realista ni un deepfake en tiempo real (los móviles usan cámaras de profundidad o infrarrojos para eso). Además, un PIN de 4 cifras del 1 al 5 solo tiene 625 combinaciones. Es un proyecto para aprender cómo funcionan estas defensas, no para proteger nada importante.
+
 ## Pruebas
 
 Las pruebas comprueban que todo sigue funcionando después de cada cambio, sin tener que abrir la webcam:
@@ -155,6 +178,7 @@ Cada paso se puede ejecutar por separado, y `sistema.py` los une:
 | `paso9_juego.py` | Minijuego de bolas de luz |
 | `paso10_raton.py` | Ratón virtual |
 | `paso11_reconocer.py` | Reconocimiento de identidad |
+| `paso12_desbloqueo.py` | Desbloqueo con cara, prueba de vida y PIN de dedos |
 | `hilos.py` | Cámara y detección en hilos separados (más FPS) |
 | `plataforma.py` | Diferencias entre Windows y Linux (cámara, ratón) |
 | `instalar_linux.sh` | Instalación en Linux |
