@@ -1,5 +1,6 @@
 # Detalles que cambian entre Windows, Linux y macOS, en un solo sitio.
 import os
+import subprocess
 import sys
 
 import cv2
@@ -29,3 +30,26 @@ def aviso_raton():
     if ES_LINUX and not os.environ.get("DISPLAY"):
         return "No hay pantalla grafica (DISPLAY vacio): el raton virtual necesita un escritorio X11."
     return None
+
+
+# En Linux (X11) pyautogui no sabe pulsar las teclas multimedia, asi que usamos xdotool
+# con sus nombres de X11. En Windows y macOS pyautogui las pulsa directamente.
+TECLAS_X11 = {
+    "volumeup": "XF86AudioRaiseVolume",
+    "volumedown": "XF86AudioLowerVolume",
+    "volumemute": "XF86AudioMute",
+    "playpause": "XF86AudioPlay",
+    "nexttrack": "XF86AudioNext",
+    "prevtrack": "XF86AudioPrev",
+}
+
+
+def pulsar_tecla(nombre):
+    if ES_LINUX and nombre in TECLAS_X11:
+        try:
+            subprocess.run(["xdotool", "key", TECLAS_X11[nombre]], check=False)
+        except FileNotFoundError:
+            print("Falta xdotool para las teclas multimedia: sudo apt-get install xdotool")
+        return
+    import pyautogui  # aqui dentro: solo hace falta (y solo necesita pantalla) si se usa
+    pyautogui.press(nombre)
