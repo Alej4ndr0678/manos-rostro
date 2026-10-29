@@ -6,7 +6,8 @@ import {
   GestureRecognizer,
 } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.1/vision_bundle.mjs";
 import { dedosLevantados, Suavizador } from "./dedos.js";
-import { Particulas } from "./particulas.js";
+import { Juego } from "./juego.js";
+import { Particulas, PUNTAS } from "./particulas.js";
 import { ALTO_BARRA, PALETA, Pizarra, ZONA_SELECCION } from "./pintar.js";
 
 const WASM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.1/wasm";
@@ -40,6 +41,7 @@ let reconocedor = null;
 let detectorRostro = null;
 let modo = "deteccion";
 let pizarra = null;
+let juego = null;
 const particulas = new Particulas();
 const suavizador = new Suavizador();
 let ultimoTiempoVideo = -1;
@@ -89,6 +91,8 @@ async function empezar() {
     lienzo.width = capaPintura.width = video.videoWidth;
     lienzo.height = capaPintura.height = video.videoHeight;
     pizarra = new Pizarra(ctxPintura, lienzo.width, lienzo.height);
+    juego = new Juego(lienzo.width, lienzo.height);
+    juego.record = leerRecord();
     $("portada").hidden = true;
     $("controles").hidden = false;
     estado(`Funcionando (${delegate === "GPU" ? "GPU" : "CPU"})`);
@@ -192,6 +196,95 @@ function dibujarBarraPintura(ahora) {
   }
 }
 
+// El record se guarda en el navegador. Si no se puede (modo privado...), se juega igual.
+function leerRecord() {
+  try {
+    return Number(localStorage.getItem("record-juego")) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function guardarRecord(puntos) {
+  try {
+    localStorage.setItem("record-juego", String(puntos));
+  } catch {
+    // sin almacenamiento: el record solo dura esta visita
+  }
+}
+
+function empezarPartida() {
+  if (!juego || juego.estado === "jugando") return;
+  juego.empezar(performance.now() / 1000);
+  $("jugar").textContent = "Jugando…";
+  $("jugar").disabled = true;
+}
+
+function dibujarJuego(manos, ahora) {
+  const puntas = manos.flatMap((m) => PUNTAS.map((i) => m.puntos[i]));
+  const antes = juego.estado;
+  for (const bola of juego.actualizar(puntas, ahora)) {
+    const rgb = bola.color.match(/\w\w/g).map((h) => parseInt(h, 16));
+    particulas.emitir(bola.x, bola.y, 0, 0, rgb, 40, 10);
+  }
+  if (antes === "jugando" && juego.estado === "fin") {
+    if (juego.nuevoRecord) guardarRecord(juego.record);
+    $("jugar").textContent = "Otra partida";
+    $("jugar").disabled = false;
+  }
+
+  ctx.save();
+  if (juego.temblando(ahora)) ctx.translate(Math.random() * 24 - 12, Math.random() * 24 - 12);
+  ctx.globalCompositeOperation = "lighter";
+  for (const bola of juego.bolas) {
+    ctx.shadowColor = bola.color;
+    ctx.shadowBlur = 30;
+    ctx.fillStyle = bola.color;
+    ctx.beginPath();
+    ctx.arc(bola.x, bola.y, bola.radio, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.arc(bola.x, bola.y, bola.radio / 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+  for (const bola of juego.bolas) {
+    if (bola.tipo === "bomba") texto("✕", bola.x - 10, bola.y + 10, 28, "#ff3030");
+  }
+  particulas.actualizarYDibujar(ctx);
+  for (const p of puntas) {
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  const centro = (t, y, tamano, color) => {
+    // Si no cabe (camara estrecha o movil), se reduce la letra
+    ctx.font = `700 ${tamano}px system-ui, sans-serif`;
+    const ancho = ctx.measureText(t).width;
+    if (ancho > lienzo.width * 0.92) tamano = Math.floor((tamano * lienzo.width * 0.92) / ancho);
+    ctx.font = `700 ${tamano}px system-ui, sans-serif`;
+    texto(t, (lienzo.width - ctx.measureText(t).width) / 2, y, tamano, color);
+  };
+  const medio = lienzo.height / 2;
+  if (juego.estado === "inicio") {
+    centro("EXPLOTA LAS BOLAS DE LUZ", medio - 60, 48, "#67e8f9");
+    centro("Color +1 · Dorada +3 · Roja −5", medio, 30);
+    centro("Pulsa «Empezar partida» o Espacio", medio + 56, 26, "#4ade80");
+    centro(`Récord: ${juego.record}`, medio + 104, 24);
+  } else if (juego.estado === "jugando") {
+    texto(`Puntos: ${juego.puntos}`, 16, 44, 32);
+    centro(`${Math.ceil(juego.tiempoRestante(ahora))}`, 48, 40, "#fbbf24");
+  } else {
+    centro("FIN DEL JUEGO", medio - 60, 56, "#f87171");
+    centro(`Puntos: ${juego.puntos}`, medio, 36);
+    centro(juego.nuevoRecord ? "¡NUEVO RÉCORD!" : `Récord: ${juego.record}`, medio + 50, 30, "#fbbf24");
+  }
+}
+
 function bucle() {
   const ahora = performance.now();
   // Solo detectamos cuando la camara da un frame nuevo
@@ -221,6 +314,8 @@ function bucle() {
   if (modo === "particulas") {
     particulas.procesar(manos);
     particulas.actualizarYDibujar(ctx);
+  } else if (modo === "juego") {
+    dibujarJuego(manos, ahora / 1000);
   } else if (modo === "pintar") {
     pizarra.actualizar(
       manos.map((m) => ({ lado: m.lado, dedos: m.dedos, x: m.puntos[8].x, y: m.puntos[8].y })),
@@ -238,7 +333,7 @@ function bucle() {
   }
 
   for (const mano of manos) {
-    if ($("ver-manos").checked) dibujarEsqueleto(mano);
+    if ($("ver-manos").checked && modo !== "juego") dibujarEsqueleto(mano);
     const n = mano.dedos.filter(Boolean).length;
     total += n;
     if (modo === "deteccion") {
@@ -265,8 +360,9 @@ function cambiarModo(nuevo) {
   for (const boton of document.querySelectorAll("[data-modo]")) {
     boton.setAttribute("aria-pressed", String(boton.dataset.modo === modo));
   }
-  if (modo !== "particulas") particulas.vaciar();
+  if (modo !== "particulas" && modo !== "juego") particulas.vaciar();
   $("ayuda-pintar").hidden = modo !== "pintar";
+  $("ayuda-juego").hidden = modo !== "juego";
 }
 
 $("empezar").addEventListener("click", empezar);
@@ -280,9 +376,15 @@ $("guardar").addEventListener("click", () => {
   enlace.href = capaPintura.toDataURL("image/png");
   enlace.click();
 });
+$("jugar").addEventListener("click", empezarPartida);
 document.addEventListener("keydown", (e) => {
-  const modos = { 1: "deteccion", 2: "particulas", 3: "pintar" };
-  if (modos[e.key] && !$("controles").hidden) cambiarModo(modos[e.key]);
+  if ($("controles").hidden) return;
+  const modos = { 1: "deteccion", 2: "particulas", 3: "pintar", 4: "juego" };
+  if (modos[e.key]) cambiarModo(modos[e.key]);
+  if (e.key === " " && modo === "juego") {
+    e.preventDefault(); // que la barra espaciadora no haga scroll
+    empezarPartida();
+  }
 });
 if (!navigator.mediaDevices?.getUserMedia) {
   estado("Este navegador no permite usar la cámara (hace falta HTTPS o localhost).");

@@ -235,7 +235,7 @@ Aparece un teclado encima de la imagen de la cámara:
 
 ## Versión web
 
-La carpeta `web/` tiene una versión que funciona en el navegador con [MediaPipe para JavaScript](https://ai.google.dev/edge/mediapipe/solutions/vision/gesture_recognizer/web_js): detección de manos, dedos, gestos y rostro, partículas y pintar en el aire. Se publica sola en **GitHub Pages**: https://alej4ndr0678.github.io/manos-rostro/
+La carpeta `web/` tiene una versión que funciona en el navegador con [MediaPipe para JavaScript](https://ai.google.dev/edge/mediapipe/solutions/vision/gesture_recognizer/web_js): detección de manos, dedos, gestos y rostro, partículas, pintar en el aire y el **minijuego** de las bolas de luz (modo 4; el récord se guarda en el navegador). Se publica sola en **GitHub Pages**: https://alej4ndr0678.github.io/manos-rostro/
 
 - **Privacidad:** todo se procesa en tu dispositivo. El vídeo no sale del navegador.
 - **Probarla en local:** la cámara solo funciona con HTTPS o en `localhost`:
@@ -244,7 +244,7 @@ La carpeta `web/` tiene una versión que funciona en el navegador con [MediaPipe
   python -m http.server 8000
   ```
   y abre http://localhost:8000
-- **Código:** `js/dedos.js` (contador de dedos, la misma lógica que `paso5_dedos.py`), `js/particulas.js`, `js/pintar.js` y `js/main.js` (cámara, modelos y dibujo). Las pruebas de la lógica están en `web/tests/` y se ejecutan con `npm test` dentro de `web/` (hace falta [Node.js](https://nodejs.org/)).
+- **Código:** `js/dedos.js` (contador de dedos, la misma lógica que `paso5_dedos.py`), `js/particulas.js`, `js/pintar.js`, `js/juego.js` (el minijuego, la misma lógica que `paso9_juego.py`) y `js/main.js` (cámara, modelos y dibujo). Las pruebas de la lógica están en `web/tests/` y se ejecutan con `npm test` dentro de `web/` (hace falta [Node.js](https://nodejs.org/)).
 - **Publicación:** `.github/workflows/web.yml` la sube a GitHub Pages en cada push a `main` que cambie `web/`. Hay que activarlo una vez en *Settings → Pages → Source: GitHub Actions*.
 
 ## Pruebas
