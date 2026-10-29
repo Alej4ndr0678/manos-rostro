@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { centrarMalla, ESPERA_AUTO, Rotador, SENSIBILIDAD } from "../js/holograma.js";
+import { centrarMalla, ESPERA_AUTO, Explosion, Rotador, SENSIBILIDAD, UMBRAL_EXPLOSION } from "../js/holograma.js";
 
 // Cara de juguete: frente arriba, barbilla abajo, nariz mas cerca de la camara (z negativa)
 const frente = { x: 0.5, y: 0.3, z: 0 };
@@ -71,4 +71,25 @@ test("no se puede voltear del todo arriba o abajo", () => {
   r.actualizar({ x: 0.5, y: 0, pellizco: true }, 1 / 60);
   r.actualizar({ x: 0.5, y: 1, pellizco: true }, 1 / 60);
   assert.ok(r.rotX <= 1.2);
+});
+
+test("al abrir la boca el holograma explota hacia fuera y al cerrarla se recompone", () => {
+  const e = new Explosion(3, () => 0.5);
+  const malla = Float32Array.from([1, 0, 0, 0, -1, 0, 0, 0, 1]);
+  assert.equal(e.aplicar(malla), malla, "boca cerrada: sin cambios");
+  for (let i = 0; i < 60; i++) e.actualizar(0.8, 1 / 60);
+  assert.ok(e.nivel > 0.9);
+  const fuera = e.aplicar(malla);
+  assert.ok(fuera[0] > 2, "el punto de la derecha se va mas a la derecha");
+  assert.ok(fuera[4] < -1, "el de abajo, mas abajo");
+  assert.ok(fuera[8] > 2, "el de delante, mas hacia delante");
+  for (let i = 0; i < 600; i++) e.actualizar(0.1, 1 / 60);
+  assert.equal(e.nivel, 0);
+  assert.equal(e.aplicar(malla), malla);
+});
+
+test("con la boca un poco abierta (hablando) no explota", () => {
+  const e = new Explosion();
+  for (let i = 0; i < 120; i++) e.actualizar(UMBRAL_EXPLOSION - 0.1, 1 / 60);
+  assert.equal(e.nivel, 0);
 });
