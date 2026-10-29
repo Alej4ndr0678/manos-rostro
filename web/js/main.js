@@ -11,6 +11,7 @@ import { dedosLevantados, Suavizador } from "./dedos.js";
 import { crearEscena, OBJETOS } from "./escena3d.js";
 import { Juego } from "./juego.js";
 import { Manipulador } from "./manipular.js";
+import { Ninja, VIDAS } from "./ninja.js";
 import { ALTO_PALA, Pong, PUNTOS_PARA_GANAR, X_PALAS } from "./pong.js";
 import { Bateria, nota, NUM_NOTAS, PADS, Sintetizador, Theremin } from "./musica.js";
 import { Particulas, PUNTAS } from "./particulas.js";
@@ -38,7 +39,9 @@ const GESTOS = {
 const LADO = { Left: "Izquierda", Right: "Derecha" };
 const COLOR_LADO = { Izquierda: "#38bdf8", Derecha: "#fb923c" };
 
-const MODOS = ["deteccion", "particulas", "pintar", "juego", "avatar", "musica", "objetos", "pong"];
+const MODOS = ["deteccion", "particulas", "pintar", "juego", "avatar", "musica", "objetos", "pong", "ninja"];
+// Modos en los que se pueden ver el esqueleto de las manos y las cajas de los rostros
+const MODOS_CON_OPCIONES = ["deteccion", "particulas", "pintar"];
 const $ = (id) => document.getElementById(id);
 const video = $("video");
 const lienzo = $("lienzo");
@@ -70,6 +73,10 @@ let anteriorObjetos = null;
 let pong = null;
 let anteriorPong = null;
 const estela = []; // ultimas posiciones de la pelota
+let ninja = null;
+let anteriorNinja = null;
+const textosNinja = []; // "+3 COMBO", "✕"... que flotan un momento
+let flashNinja = 0; // destello blanco al cortar una bomba
 const particulas = new Particulas();
 const suavizador = new Suavizador();
 let ultimoTiempoVideo = -1;
@@ -77,6 +84,10 @@ let resultadoManos = null;
 let resultadoRostro = null;
 let fps = 0;
 let anterior = performance.now();
+
+function verRostro() {
+  return $("ver-rostro").checked && MODOS_CON_OPCIONES.includes(modo);
+}
 
 function estado(texto) {
   $("estado").textContent = texto;
@@ -200,7 +211,7 @@ function dibujarEsqueleto(mano) {
 }
 
 function dibujarRostros() {
-  if (!resultadoRostro || !$("ver-rostro").checked) return 0;
+  if (!resultadoRostro || !verRostro()) return 0;
   for (const deteccion of resultadoRostro.detections) {
     const caja = deteccion.boundingBox;
     const x = lienzo.width - caja.originX - caja.width; // espejo
@@ -243,17 +254,17 @@ function dibujarBarraPintura(ahora) {
 }
 
 // El record se guarda en el navegador. Si no se puede (modo privado...), se juega igual.
-function leerRecord() {
+function leerRecord(clave = "record-juego") {
   try {
-    return Number(localStorage.getItem("record-juego")) || 0;
+    return Number(localStorage.getItem(clave)) || 0;
   } catch {
     return 0;
   }
 }
 
-function guardarRecord(puntos) {
+function guardarRecord(puntos, clave = "record-juego") {
   try {
-    localStorage.setItem("record-juego", String(puntos));
+    localStorage.setItem(clave, String(puntos));
   } catch {
     // sin almacenamiento: el record solo dura esta visita
   }
@@ -629,13 +640,190 @@ function nuevaPartidaPong() {
   estela.length = 0;
 }
 
+// ---------- Ninja ----------
+
+const aRGB = (color) => color.match(/\w\w/g).map((h) => parseInt(h, 16));
+
+function dibujarEmoji(emoji, tamano) {
+  ctx.font = `${tamano}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#000"; // opaco: los emojis de color usan la transparencia del fillStyle
+  ctx.fillText(emoji, 0, 0);
+  ctx.textAlign = "start";
+  ctx.textBaseline = "alphabetic";
+}
+
+function dibujarNinja(manos, ahora) {
+  const W = lienzo.width;
+  const H = lienzo.height;
+  if (!ninja) {
+    ninja = new Ninja(W / H);
+    ninja.record = leerRecord("record-ninja");
+  }
+  const dt = anteriorNinja === null ? 1 / 60 : ahora - anteriorNinja;
+  anteriorNinja = ahora;
+  // Corta la punta del indice de cada mano
+  const dedos = manos.map((m) => ({ clave: m.lado, x: m.puntos[8].x / W, y: m.puntos[8].y / H }));
+  for (const e of ninja.actualizar(dedos, dt, ahora)) {
+    if (e.tipo === "corte") {
+      sinte?.corte();
+      if (!e.objeto.bomba) particulas.emitir(e.objeto.x * W, e.objeto.y * H, 0, 0, aRGB(e.objeto.color), 30, 9);
+    } else if (e.tipo === "bomba") {
+      sinte?.explosion();
+      flashNinja = ahora;
+      particulas.emitir(e.x * W, e.y * H, 0, 0, [255, 200, 80], 120, 18);
+    } else if (e.tipo === "combo") {
+      textosNinja.push({ t: `¡COMBO ×${e.n}! +${e.n}`, x: e.x * W, y: e.y * H, color: "#fbbf24", inicio: ahora });
+      [784, 988, 1175].forEach((f, i) => setTimeout(() => sinte?.bip(f, 0.1), i * 70));
+    } else if (e.tipo === "fallo") {
+      textosNinja.push({ t: "✕", x: e.x * W, y: H - 40, color: "#f87171", inicio: ahora });
+      sinte?.bip(180, 0.25);
+    } else if (e.tipo === "fin" && ninja.nuevoRecord) {
+      guardarRecord(ninja.record, "record-ninja");
+    }
+  }
+
+  ctx.save();
+  if (ahora - flashNinja < 0.4) ctx.translate(Math.random() * 30 - 15, Math.random() * 30 - 15); // temblor
+
+  // Zumo en la pantalla (se va borrando)
+  for (const m of ninja.manchas) {
+    const [r, g, b] = aRGB(m.color);
+    const alfa = 0.45 * (1 - (ahora - m.t) / 1.5);
+    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alfa})`;
+    for (let i = 0; i < 7; i++) {
+      // Una mancha grande y gotas alrededor (siempre en el mismo sitio para cada mancha)
+      const ang = i * 2.4 + m.x * 10;
+      const d = i === 0 ? 0 : m.radio * H * (0.9 + (i % 3) * 0.3);
+      const radio = i === 0 ? m.radio * H : m.radio * H * (0.15 + (i % 2) * 0.12);
+      ctx.beginPath();
+      ctx.arc(m.x * W + Math.cos(ang) * d, m.y * H + Math.sin(ang) * d, radio, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Frutas y bombas enteras
+  for (const o of ninja.objetos) {
+    const r = o.radio * H;
+    ctx.save();
+    ctx.translate(o.x * W, o.y * H);
+    if (o.diana) {
+      // Aro que late alrededor de la sandia de empezar
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * (1.25 + 0.08 * Math.sin(ahora * 5)), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (o.bomba) {
+      ctx.shadowColor = "#ef4444";
+      ctx.shadowBlur = 30 + 15 * Math.sin(ahora * 20);
+    }
+    ctx.rotate(o.giro);
+    dibujarEmoji(o.emoji, r * 2);
+    ctx.restore();
+  }
+
+  // Mitades: cada una es la fruta recortada por un lado de la linea del corte
+  for (const t of ninja.trozos) {
+    const r = t.radio * H;
+    ctx.save();
+    ctx.translate(t.x * W, t.y * H);
+    ctx.rotate(t.giro + t.corte);
+    ctx.beginPath();
+    ctx.rect(-r * 1.5, 0, r * 3, t.lado * r * 1.5);
+    ctx.clip();
+    ctx.rotate(-t.corte);
+    dibujarEmoji(t.emoji, r * 2);
+    ctx.rotate(t.corte);
+    // La cara del corte, del color de la fruta
+    ctx.strokeStyle = t.color;
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.8, 0);
+    ctx.lineTo(r * 0.8, 0);
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
+  particulas.actualizarYDibujar(ctx);
+
+  // Estela de la espada: mas gruesa y brillante cerca del dedo
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.shadowColor = "#67e8f9";
+  ctx.shadowBlur = 20;
+  for (const rastro of ninja.rastros.values()) {
+    for (let i = 1; i < rastro.length; i++) {
+      const f = i / rastro.length;
+      ctx.strokeStyle = `rgba(224, 255, 255, ${f})`;
+      ctx.lineWidth = 2 + f * 12;
+      ctx.beginPath();
+      ctx.moveTo(rastro[i - 1].x * W, rastro[i - 1].y * H);
+      ctx.lineTo(rastro[i].x * W, rastro[i].y * H);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+  for (const d of dedos) {
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.arc(d.x * W, d.y * H, 6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Textos que suben y se desvanecen
+  for (let i = textosNinja.length - 1; i >= 0; i--) {
+    const tx = textosNinja[i];
+    const edad = ahora - tx.inicio;
+    if (edad > 1.2) {
+      textosNinja.splice(i, 1);
+      continue;
+    }
+    ctx.globalAlpha = 1 - edad / 1.2;
+    ctx.font = "700 36px system-ui, sans-serif";
+    const x = Math.min(Math.max(tx.x - ctx.measureText(tx.t).width / 2, 8), W - ctx.measureText(tx.t).width - 8);
+    texto(tx.t, x, tx.y - edad * 60, 36, tx.color);
+    ctx.globalAlpha = 1;
+  }
+
+  // Destello de la bomba
+  if (ahora - flashNinja < 0.5) {
+    ctx.fillStyle = `rgba(255, 255, 255, ${0.9 * (1 - (ahora - flashNinja) / 0.5)})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // Marcador
+  if (ninja.estado === "jugando") {
+    texto(`🍉 ${ninja.puntos}`, 16, 48, 40, "#fbbf24");
+    const vidas = "❤️".repeat(ninja.vidas) + "🖤".repeat(VIDAS - ninja.vidas);
+    ctx.font = "32px sans-serif";
+    ctx.fillText(vidas, W - ctx.measureText(vidas).width - 16, 48);
+  } else {
+    const diana = ninja.objetos.find((o) => o.diana);
+    const arriba = H * 0.45 - ninja.diana().radio * H * 1.5;
+    if (ninja.estado === "fin") {
+      textoCentrado(`FIN · ${ninja.puntos} puntos`, Math.max(arriba - 70, 50), 52, "#f87171");
+      if (ninja.nuevoRecord) textoCentrado("¡NUEVO RÉCORD!", Math.max(arriba - 20, 100), 32, "#fbbf24");
+    } else {
+      textoCentrado("CORTA LA SANDÍA PARA EMPEZAR", Math.max(arriba - 30, 50), 40, "#67e8f9");
+    }
+    if (diana) {
+      textoCentrado("Mueve el índice rápido a través de la fruta ✋💨", H * 0.45 + diana.radio * H * 1.7 + 20, 26);
+      textoCentrado(`Récord: ${ninja.record} · ¡Cuidado con las 💣!`, H * 0.45 + diana.radio * H * 1.7 + 60, 24, "#e4e4e7");
+    }
+  }
+}
+
 function bucle() {
   const ahora = performance.now();
   // Solo detectamos cuando la camara da un frame nuevo
   if (video.currentTime !== ultimoTiempoVideo) {
     ultimoTiempoVideo = video.currentTime;
     resultadoManos = reconocedor.recognizeForVideo(video, ahora);
-    resultadoRostro = $("ver-rostro").checked && modo !== "avatar" ? detectorRostro.detectForVideo(video, ahora) : null;
+    // (en los juegos no se busca el rostro: no se dibuja y asi va mas fluido)
+    resultadoRostro = verRostro() ? detectorRostro.detectForVideo(video, ahora) : null;
     resultadoMalla = modo === "avatar" && malla ? malla.detectForVideo(video, ahora) : null;
   }
   fps = 0.9 * fps + 0.1 * (1000 / Math.max(ahora - anterior, 1));
@@ -659,6 +847,8 @@ function bucle() {
   if (modo === "particulas") {
     particulas.procesar(manos);
     particulas.actualizarYDibujar(ctx);
+  } else if (modo === "ninja") {
+    dibujarNinja(manos, ahora / 1000);
   } else if (modo === "pong") {
     dibujarPong(manos, ahora / 1000);
   } else if (modo === "objetos") {
@@ -684,7 +874,7 @@ function bucle() {
   }
 
   for (const mano of manos) {
-    if ($("ver-manos").checked && !["juego", "avatar", "musica", "objetos", "pong"].includes(modo)) dibujarEsqueleto(mano);
+    if ($("ver-manos").checked && MODOS_CON_OPCIONES.includes(modo)) dibujarEsqueleto(mano);
     const n = mano.dedos.filter(Boolean).length;
     total += n;
     if (modo === "deteccion") {
@@ -702,7 +892,7 @@ function bucle() {
   $("info-fps").textContent = Math.round(fps);
   $("info-manos").textContent = manos.length;
   $("info-dedos").textContent = total;
-  $("info-rostros").textContent = $("ver-rostro").checked ? rostros : "–";
+  $("info-rostros").textContent = verRostro() || modo === "avatar" ? rostros : "–";
   requestAnimationFrame(bucle);
 }
 
@@ -710,11 +900,11 @@ function cambiarModo(nuevo) {
   modo = nuevo;
   history.replaceState(null, "", `#${modo}`); // asi se puede compartir el enlace a un modo
   // Las opciones de esqueleto y rostro solo pintan algo en los tres primeros modos
-  $("ver-manos").parentElement.hidden = $("ver-rostro").parentElement.hidden = !["deteccion", "particulas", "pintar"].includes(modo);
+  $("ver-manos").parentElement.hidden = $("ver-rostro").parentElement.hidden = !MODOS_CON_OPCIONES.includes(modo);
   for (const boton of document.querySelectorAll("[data-modo]")) {
     boton.setAttribute("aria-pressed", String(boton.dataset.modo === modo));
   }
-  if (modo !== "particulas" && modo !== "juego") particulas.vaciar();
+  if (!["particulas", "juego", "ninja"].includes(modo)) particulas.vaciar();
   $("ayuda-pintar").hidden = modo !== "pintar";
   $("ayuda-juego").hidden = modo !== "juego";
   $("ayuda-avatar").hidden = modo !== "avatar";
@@ -722,7 +912,8 @@ function cambiarModo(nuevo) {
   $("ayuda-objetos").hidden = modo !== "objetos";
   if (modo === "objetos") cargarEscena();
   $("ayuda-pong").hidden = modo !== "pong";
-  if (modo === "musica" || modo === "pong") activarAudio();
+  $("ayuda-ninja").hidden = modo !== "ninja";
+  if (["musica", "pong", "ninja"].includes(modo)) activarAudio();
   else sinte?.tocar(null);
   if (modo === "avatar") cargarMalla();
 }
@@ -757,7 +948,7 @@ $("guardar").addEventListener("click", () => {
 $("jugar").addEventListener("click", empezarPartida);
 document.addEventListener("keydown", (e) => {
   if ($("controles").hidden) return;
-  if (/^[1-8]$/.test(e.key)) cambiarModo(MODOS[Number(e.key) - 1]);
+  if (/^[1-9]$/.test(e.key)) cambiarModo(MODOS[Number(e.key) - 1]);
   if (e.key.toLowerCase() === "f") pantallaCompleta();
   if (e.key === " " && modo === "juego") {
     e.preventDefault(); // que la barra espaciadora no haga scroll

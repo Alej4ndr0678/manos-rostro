@@ -178,6 +178,41 @@ export class Sintetizador {
     osc.stop(t + duracion);
   }
 
+  // "Fshh" de un tajo: ruido que pasa de grave a agudo (para el modo ninja)
+  corte() {
+    const t = this.audio.currentTime;
+    const fuente = this.audio.createBufferSource();
+    fuente.buffer = this.ruido;
+    const filtro = this.audio.createBiquadFilter();
+    filtro.type = "bandpass";
+    filtro.Q.value = 2;
+    filtro.frequency.setValueAtTime(800, t);
+    filtro.frequency.exponentialRampToValueAtTime(5000, t + 0.12);
+    const g = this.audio.createGain();
+    g.gain.setValueAtTime(0.5, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+    fuente.connect(filtro).connect(g).connect(this.salida);
+    fuente.start(t);
+    fuente.stop(t + 0.15);
+  }
+
+  // Explosion: ruido grave y largo
+  explosion() {
+    const t = this.audio.currentTime;
+    const fuente = this.audio.createBufferSource();
+    fuente.buffer = this.ruido;
+    const filtro = this.audio.createBiquadFilter();
+    filtro.type = "lowpass";
+    filtro.frequency.setValueAtTime(1200, t);
+    filtro.frequency.exponentialRampToValueAtTime(80, t + 0.9);
+    const g = this.audio.createGain();
+    g.gain.setValueAtTime(1, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 1);
+    fuente.connect(filtro).connect(g).connect(this.salida);
+    fuente.start(t);
+    fuente.stop(t + 1);
+  }
+
   golpe(pad) {
     const a = this.audio;
     const t = a.currentTime;
