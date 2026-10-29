@@ -2,6 +2,8 @@
 
 [![Pruebas](https://github.com/Alej4ndr0678/manos-rostro/actions/workflows/pruebas.yml/badge.svg)](https://github.com/Alej4ndr0678/manos-rostro/actions/workflows/pruebas.yml)
 
+**🌐 Pruébalo en el navegador, sin instalar nada:** https://alej4ndr0678.github.io/manos-rostro/
+
 Sistema en Python que usa la webcam para detectar **rostros** y **manos**, contar los **dedos levantados** y generar **partículas** que salen de las puntas de los dedos.
 
 Hecho con [OpenCV](https://opencv.org/) (cámara y dibujo) y [MediaPipe](https://ai.google.dev/edge/mediapipe) (modelos de detección, API *Tasks*).
@@ -18,6 +20,7 @@ Hecho con [OpenCV](https://opencv.org/) (cámara y dibujo) y [MediaPipe](https:/
 - Desbloqueo biométrico: cara + prueba de vida al azar (parpadeos y giro de cabeza) + PIN marcado con los dedos.
 - Control del PC con gestos: volumen, música (play/pausa, siguiente, anterior) y pasar diapositivas.
 - Traductor de lengua de señas que entrenas tú: grabas ejemplos de cada seña y un modelo de machine learning (Random Forest) aprende a reconocerlas.
+- Versión web: detección, partículas y pintar en el aire directamente en el navegador (también en el móvil).
 - Reconocimiento de 7 gestos: puño, mano abierta, apuntar arriba, pulgar arriba/abajo, victoria y "te quiero".
 - Partículas con física (gravedad, rozamiento, brillo) que siguen el movimiento de los dedos. Pellizco = explosión.
 - Todo se activa y desactiva con el teclado.
@@ -192,6 +195,20 @@ Cómo funciona:
 
 Consejos: graba cada seña con buena luz, girando y acercando un poco la mano. Si `entrenar` muestra que dos señas se confunden, graba más ejemplos de ellas. Las señas con movimiento (como la J o la Z) no se pueden reconocer así, porque el modelo solo ve una foto de la mano.
 
+## Versión web
+
+La carpeta `web/` tiene una versión que funciona en el navegador con [MediaPipe para JavaScript](https://ai.google.dev/edge/mediapipe/solutions/vision/gesture_recognizer/web_js): detección de manos, dedos, gestos y rostro, partículas y pintar en el aire. Se publica sola en **GitHub Pages**: https://alej4ndr0678.github.io/manos-rostro/
+
+- **Privacidad:** todo se procesa en tu dispositivo. El vídeo no sale del navegador.
+- **Probarla en local:** la cámara solo funciona con HTTPS o en `localhost`:
+  ```powershell
+  cd web
+  python -m http.server 8000
+  ```
+  y abre http://localhost:8000
+- **Código:** `js/dedos.js` (contador de dedos, la misma lógica que `paso5_dedos.py`), `js/particulas.js`, `js/pintar.js` y `js/main.js` (cámara, modelos y dibujo). Las pruebas de la lógica están en `web/tests/` y se ejecutan con `npm test` dentro de `web/` (hace falta [Node.js](https://nodejs.org/)).
+- **Publicación:** `.github/workflows/web.yml` la sube a GitHub Pages en cada push a `main` que cambie `web/`. Hay que activarlo una vez en *Settings → Pages → Source: GitHub Actions*.
+
 ## Pruebas
 
 Las pruebas comprueban que todo sigue funcionando después de cada cambio, sin tener que abrir la webcam:
@@ -205,7 +222,7 @@ python -m pytest -m "not modelos"   # solo las rápidas, sin modelos ni internet
 - **Rápidas:** usan manos "inventadas" (21 puntos con coordenadas puestas a mano) para probar el contador de dedos, pintar, el minijuego, el ratón virtual y los hilos.
 - **Con modelos:** usan fotos de ejemplo de MediaPipe para comprobar que los gestos, las manos, el rostro y la identidad se detectan de verdad, y arrancan `sistema.py` completo con una cámara simulada.
 
-GitHub Actions las ejecuta solo en cada push y en cada pull request, en Windows y en Linux (`.github/workflows/pruebas.yml`). La insignia de arriba se pone verde si todo pasa.
+GitHub Actions las ejecuta solo en cada push y en cada pull request, en Windows y en Linux, junto con las de la versión web (`.github/workflows/pruebas.yml`). La insignia de arriba se pone verde si todo pasa.
 
 ## Estructura
 
@@ -231,6 +248,7 @@ Cada paso se puede ejecutar por separado, y `sistema.py` los une:
 | `instalar_linux.sh` | Instalación en Linux |
 | `sistema.py` | Todo junto |
 | `tests/` | Pruebas automáticas (`pytest`) |
+| `web/` | Versión para el navegador (GitHub Pages) |
 
 ## Rendimiento
 

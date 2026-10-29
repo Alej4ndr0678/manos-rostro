@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Manos y Rostro</title>
+  <meta name="description" content="Detección de manos y rostro en tiempo real en el navegador con MediaPipe: dedos, gestos, partículas y pintar en el aire.">
+  <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+  <header>
+    <h1>✋ Manos y Rostro</h1>
+    <p>Detección de manos y rostro en tiempo real, en tu navegador.</p>
+  </header>
+
+  <main>
+    <div class="escenario">
+      <video id="video" playsinline muted></video>
+      <canvas id="lienzo" width="1280" height="720" aria-label="Imagen de la cámara con las detecciones"></canvas>
+      <div id="portada" class="portada">
+        <button id="empezar" class="principal">Activar cámara</button>
+        <p class="privacidad">🔒 Todo se procesa en tu dispositivo. El vídeo no se envía a ningún servidor.</p>
+      </div>
+    </div>
+
+    <p id="estado" class="estado" role="status">Pulsa «Activar cámara» para empezar.</p>
+
+    <section id="controles" hidden>
+      <div class="modos" role="group" aria-label="Modo">
+        <button data-modo="deteccion" aria-pressed="true">1 · Detección</button>
+        <button data-modo="particulas" aria-pressed="false">2 · Partículas</button>
+        <button data-modo="pintar" aria-pressed="false">3 · Pintar</button>
+      </div>
+
+      <div class="opciones">
+        <label><input type="checkbox" id="ver-manos" checked> Esqueleto de manos</label>
+        <label><input type="checkbox" id="ver-rostro" checked> Rostro</label>
+      </div>
+
+      <dl class="info">
+        <div><dt>FPS</dt><dd id="info-fps">0</dd></div>
+        <div><dt>Manos</dt><dd id="info-manos">0</dd></div>
+        <div><dt>Dedos</dt><dd id="info-dedos">0</dd></div>
+        <div><dt>Rostros</dt><dd id="info-rostros">0</dd></div>
+      </dl>
+
+      <div id="ayuda-pintar" class="ayuda" hidden>
+        <p><strong>Índice</strong> = pintar · <strong>Índice + corazón (V)</strong> = mover sin pintar ·
+          sube el dedo a la barra para elegir color · <strong>mano abierta</strong> un momento = borrar todo.</p>
+        <button id="borrar">Borrar</button>
+        <button id="guardar">Guardar PNG</button>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Hecho con <a href="https://ai.google.dev/edge/mediapipe">MediaPipe</a> ·
+      <a href="https://github.com/Alej4ndr0678/manos-rostro">Código en GitHub</a></p>
+  </footer>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

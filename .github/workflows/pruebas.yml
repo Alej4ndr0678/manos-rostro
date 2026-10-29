@@ -42,3 +42,14 @@ jobs:
 
       - name: Pruebas con los modelos de verdad
         run: python -m pytest -m modelos -v
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Pruebas de la version web
+        working-directory: web
+        run: npm test
