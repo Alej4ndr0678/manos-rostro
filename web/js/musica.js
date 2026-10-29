@@ -196,6 +196,65 @@ export class Sintetizador {
     fuente.stop(t + 0.15);
   }
 
+  // Zumbido continuo de los sables de luz: volumen de 0 a 1 (0 = apagado) y agitacion de 0 a 1
+  // (cuanto mas rapido mueves el sable, mas agudo y fuerte, como en las peliculas)
+  zumbido(volumen, agitacion = 0) {
+    const a = this.audio;
+    const t = a.currentTime;
+    if (!this.zumb) {
+      if (volumen <= 0) return;
+      const osc1 = a.createOscillator();
+      const osc2 = a.createOscillator();
+      const filtro = a.createBiquadFilter();
+      const vol = a.createGain();
+      osc1.type = osc2.type = "sawtooth";
+      osc1.frequency.value = 90;
+      osc2.frequency.value = 91.5; // dos tonos casi iguales hacen ese "vibrar" del sable
+      filtro.type = "lowpass";
+      filtro.frequency.value = 400;
+      vol.gain.value = 0;
+      osc1.connect(filtro);
+      osc2.connect(filtro);
+      filtro.connect(vol).connect(this.salida);
+      osc1.start();
+      osc2.start();
+      this.zumb = { osc1, osc2, filtro, vol };
+    }
+    const z = this.zumb;
+    z.vol.gain.setTargetAtTime(volumen * (0.12 + agitacion * 0.12), t, 0.05);
+    z.osc1.frequency.setTargetAtTime(90 + agitacion * 60, t, 0.05);
+    z.osc2.frequency.setTargetAtTime(91.5 + agitacion * 62, t, 0.05);
+    z.filtro.frequency.setTargetAtTime(400 + agitacion * 1600, t, 0.05);
+  }
+
+  // Choque de dos sables: un chasquido metalico con chisporroteo
+  choque() {
+    const t = this.audio.currentTime;
+    for (const [frecuencia, duracion] of [[1400, 0.25], [2100, 0.2], [620, 0.3]]) {
+      const osc = this.audio.createOscillator();
+      const g = this.audio.createGain();
+      osc.type = "square";
+      osc.frequency.setValueAtTime(frecuencia, t);
+      osc.frequency.exponentialRampToValueAtTime(frecuencia * 0.6, t + duracion);
+      g.gain.setValueAtTime(0.08, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + duracion);
+      osc.connect(g).connect(this.salida);
+      osc.start(t);
+      osc.stop(t + duracion);
+    }
+    const fuente = this.audio.createBufferSource();
+    fuente.buffer = this.ruido;
+    const filtro = this.audio.createBiquadFilter();
+    filtro.type = "highpass";
+    filtro.frequency.value = 3000;
+    const g = this.audio.createGain();
+    g.gain.setValueAtTime(0.6, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+    fuente.connect(filtro).connect(g).connect(this.salida);
+    fuente.start(t);
+    fuente.stop(t + 0.35);
+  }
+
   // Explosion: ruido grave y largo
   explosion() {
     const t = this.audio.currentTime;

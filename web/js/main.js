@@ -18,6 +18,7 @@ import { Chispas, EXTREMOS, visibles } from "./neon.js";
 import { leerMano, Manipulador } from "./manipular.js";
 import { Ninja, VIDAS } from "./ninja.js";
 import { ESPERA_EMPEZAR, MANTENER, Reto, VIDAS as VIDAS_RETO } from "./reto.js";
+import { Sables } from "./sables.js";
 import { ALTO_PALA, Pong, PUNTOS_PARA_GANAR, X_PALAS } from "./pong.js";
 import { Bateria, nota, NUM_NOTAS, PADS, Sintetizador, Theremin } from "./musica.js";
 import { Particulas, PUNTAS } from "./particulas.js";
@@ -47,7 +48,7 @@ const GESTOS = {
 const LADO = { Left: "Izquierda", Right: "Derecha" };
 const COLOR_LADO = { Izquierda: "#38bdf8", Derecha: "#fb923c" };
 
-const MODOS = ["deteccion", "particulas", "pintar", "juego", "avatar", "musica", "objetos", "pong", "ninja", "holograma", "escultura", "reto", "neon"];
+const MODOS = ["deteccion", "particulas", "pintar", "juego", "avatar", "musica", "objetos", "pong", "ninja", "holograma", "escultura", "reto", "neon", "sables"];
 // Modos en los que se pueden ver el esqueleto de las manos y las cajas de los rostros
 const MODOS_CON_OPCIONES = ["deteccion", "particulas", "pintar"];
 const $ = (id) => document.getElementById(id);
@@ -110,6 +111,11 @@ const ctxNeon = capaNeon.getContext("2d");
 const chispas = new Chispas();
 let anteriorNeon = null;
 let anteriorReto = null;
+let sables = null;
+let anteriorSables = null;
+const textosSables = []; // "+1", "¡AL DRON!"... que flotan un momento
+let flashSables = -1; // cuando te ha dado un rayo (pantalla roja un instante)
+const COLOR_SABLE = { Izquierda: [56, 189, 248], Derecha: [74, 222, 128] }; // azul y verde
 let destelloReto = { color: null, hasta: 0 }; // verde al acertar, rojo al fallar
 const particulas = new Particulas();
 const suavizador = new Suavizador();
@@ -1147,6 +1153,160 @@ function dibujarNeon(ahora) {
   if (!cuerpos.length) textoCentrado("Aléjate de la cámara para que se vea tu cuerpo 🕺", H - 30, 28);
 }
 
+// ---------- Sables de luz ----------
+
+function dibujarSables(manos, ahora) {
+  const W = lienzo.width;
+  const H = lienzo.height;
+  const A = W / H;
+  if (!sables || sables.aspecto !== A) sables = new Sables(A);
+  const dt = anteriorSables === null ? 1 / 60 : ahora - anteriorSables;
+  anteriorSables = ahora;
+  ctx.fillStyle = "rgba(0, 0, 0, 0.35)"; // aun mas oscuro: los sables brillan mas
+  ctx.fillRect(0, 0, W, H);
+
+  const entrada = manos.map((m) => ({ clave: m.lado, puntos: m.puntos.map((p) => ({ x: p.x / W, y: p.y / H })) }));
+  let agitacion = 0;
+  for (const e of sables.actualizar(entrada, dt)) {
+    if (e.tipo === "zas") {
+      sinte?.corte();
+      agitacion = Math.min(1, e.velocidad / 6);
+    } else if (e.tipo === "choque") {
+      sinte?.choque();
+      particulas.emitir(e.x * W, e.y * H, 0, 0, [255, 255, 255], 50, 7);
+      particulas.emitir(e.x * W, e.y * H, 0, 0, [253, 224, 71], 40, 9);
+    } else if (e.tipo === "desvio") {
+      sinte?.bip(880 + Math.min(e.racha, 20) * 30, 0.06);
+      particulas.emitir(e.x * W, e.y * H, 0, 0, COLOR_SABLE[e.clave] ?? [255, 255, 255], 25, 6);
+      textosSables.push({ t: e.racha > 1 ? `+1 ×${e.racha}` : "+1", x: e.x * W, y: e.y * H, color: "#fde047", inicio: ahora });
+    } else if (e.tipo === "dron") {
+      sinte?.explosion();
+      particulas.emitir(e.x * W, e.y * H, 0, 0, [248, 113, 113], 80, 12);
+      textosSables.push({ t: "¡LE DISTE AL DRON!", x: e.x * W, y: e.y * H + 60, color: "#f87171", inicio: ahora });
+    } else if (e.tipo === "impacto") {
+      sinte?.bip(150, 0.3);
+      flashSables = ahora;
+    } else if (e.tipo === "disparo") {
+      sinte?.bip(1600, 0.04);
+    } else if (e.tipo === "encender") {
+      sinte?.corte();
+    }
+  }
+  const activos = sables.activos();
+  sinte?.zumbido(activos.length ? Math.max(...activos.map((s) => s.encendido)) : 0, agitacion);
+
+  // Flash rojo si te ha dado un rayo
+  const flash = 1 - (ahora - flashSables) / 0.4;
+  if (flash > 0) {
+    ctx.fillStyle = `rgba(239, 68, 68, ${flash * 0.35})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  ctx.save();
+  ctx.lineCap = "round";
+  // El dron de entrenamiento: una bola gris con un ojo rojo
+  const dx = (sables.dron.x / A) * W;
+  const dy = sables.dron.y * H;
+  const radioDron = H * 0.035;
+  const gradiente = ctx.createRadialGradient(dx - radioDron * 0.3, dy - radioDron * 0.3, 1, dx, dy, radioDron);
+  gradiente.addColorStop(0, "#e5e7eb");
+  gradiente.addColorStop(1, "#4b5563");
+  ctx.fillStyle = gradiente;
+  ctx.beginPath();
+  ctx.arc(dx, dy, radioDron, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#ef4444";
+  ctx.shadowColor = "#ef4444";
+  ctx.shadowBlur = 15;
+  ctx.beginPath();
+  ctx.arc(dx, dy + radioDron * 0.3, radioDron * 0.28, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Rayos: rojos los que vienen hacia ti, amarillos los que has devuelto
+  for (const r of sables.rayos) {
+    const color = r.desviado ? "#fde047" : "#f87171";
+    const largo = 0.06 / Math.hypot(r.vx, r.vy);
+    ctx.strokeStyle = ctx.shadowColor = color;
+    ctx.shadowBlur = 20;
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo((r.x / A) * W, r.y * H);
+    ctx.lineTo(((r.x - r.vx * largo) / A) * W, (r.y - r.vy * largo) * H);
+    ctx.stroke();
+    ctx.strokeStyle = "#fff";
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  // Sables: un halo de color, la hoja blanca por dentro y la empunadura
+  for (const s of activos) {
+    const [r, g, b] = COLOR_SABLE[s.clave] ?? [192, 132, 252];
+    const x1 = (s.base.x / A) * W;
+    const y1 = s.base.y * H;
+    const x2 = (s.punta.x / A) * W;
+    const y2 = s.punta.y * H;
+    const parpadeo = 0.9 + Math.random() * 0.1; // la luz tiembla un poquito, como en las pelis
+    ctx.globalCompositeOperation = "lighter";
+    for (const [ancho, alfa, blur] of [[34, 0.25, 40], [18, 0.6, 25]]) {
+      ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alfa * parpadeo})`;
+      ctx.shadowColor = `rgb(${r}, ${g}, ${b})`;
+      ctx.shadowBlur = blur;
+      ctx.lineWidth = ancho;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+    ctx.globalCompositeOperation = "source-over";
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    // Empunadura: hacia la muneca, en la direccion contraria a la hoja
+    const largo = Math.hypot(x2 - x1, y2 - y1) || 1;
+    const ux = (x2 - x1) / largo;
+    const uy = (y2 - y1) / largo;
+    const mango = H * 0.09 * Math.max(s.encendido, 0.5);
+    ctx.strokeStyle = "#9ca3af";
+    ctx.lineWidth = 14;
+    ctx.lineCap = "butt";
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x1 - ux * mango, y1 - uy * mango);
+    ctx.stroke();
+    ctx.strokeStyle = "#1f2937";
+    ctx.lineWidth = 16;
+    ctx.beginPath();
+    ctx.moveTo(x1 - ux * mango * 0.45, y1 - uy * mango * 0.45);
+    ctx.lineTo(x1 - ux * mango * 0.6, y1 - uy * mango * 0.6);
+    ctx.stroke();
+    ctx.lineCap = "round";
+  }
+  ctx.restore();
+  particulas.actualizarYDibujar(ctx);
+
+  // Textos que suben y se desvanecen
+  for (let i = textosSables.length - 1; i >= 0; i--) {
+    const t = textosSables[i];
+    const edad = ahora - t.inicio;
+    if (edad > 0.9) {
+      textosSables.splice(i, 1);
+      continue;
+    }
+    ctx.globalAlpha = 1 - edad / 0.9;
+    texto(t.t, t.x, t.y - edad * 60, 30, t.color);
+    ctx.globalAlpha = 1;
+  }
+
+  texto(`Desviados: ${sables.desviados}`, 16, 40, 30, "#fde047");
+  texto(`Racha: ${sables.racha}  (mejor ${sables.mejorRacha})`, 16, 76, 24);
+  if (!activos.length) textoCentrado("Enseña una mano y se encenderá tu sable ⚔️", H - 30, 28);
+}
+
 function bucle() {
   const ahora = performance.now();
   // Solo detectamos cuando la camara da un frame nuevo
@@ -1181,6 +1341,8 @@ function bucle() {
     particulas.actualizarYDibujar(ctx);
   } else if (modo === "neon") {
     dibujarNeon(ahora / 1000);
+  } else if (modo === "sables") {
+    dibujarSables(manos, ahora / 1000);
   } else if (modo === "reto") {
     dibujarReto(manos, ahora / 1000);
   } else if (modo === "escultura") {
@@ -1244,7 +1406,7 @@ function cambiarModo(nuevo) {
   for (const boton of document.querySelectorAll("[data-modo]")) {
     boton.setAttribute("aria-pressed", String(boton.dataset.modo === modo));
   }
-  if (!["particulas", "juego", "ninja"].includes(modo)) particulas.vaciar();
+  if (!["particulas", "juego", "ninja", "sables"].includes(modo)) particulas.vaciar();
   $("ayuda-pintar").hidden = modo !== "pintar";
   $("ayuda-juego").hidden = modo !== "juego";
   $("ayuda-avatar").hidden = modo !== "avatar";
@@ -1253,8 +1415,10 @@ function cambiarModo(nuevo) {
   if (modo === "objetos") cargarEscena();
   $("ayuda-pong").hidden = modo !== "pong";
   $("ayuda-ninja").hidden = modo !== "ninja";
-  if (["musica", "pong", "ninja", "reto"].includes(modo)) activarAudio();
+  if (["musica", "pong", "ninja", "reto", "sables"].includes(modo)) activarAudio();
   else sinte?.tocar(null);
+  if (modo !== "sables") sinte?.zumbido(0);
+  $("ayuda-sables").hidden = modo !== "sables";
   if (modo === "avatar") cargarMalla();
   $("ayuda-holograma").hidden = modo !== "holograma";
   $("ayuda-escultura").hidden = modo !== "escultura";
