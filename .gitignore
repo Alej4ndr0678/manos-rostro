@@ -35,3 +35,6 @@ accesos.log
 
 # Muestras grabadas para el traductor de senas (paso 14)
 senas.csv
+
+# Fotos del paso 17 (teclas s y a)
+foto_*.png

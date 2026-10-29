@@ -270,3 +270,23 @@ def test_pose_guerrero_de_yoga(cache):
     assert all(c > 150 for c in codos), f"brazos estirados: {codos}"
     assert rodillas[0] < 130, f"una rodilla doblada: {rodillas}"
     assert rodillas[1] > 150, f"la otra recta: {rodillas}"
+
+
+@pytest.mark.parametrize("archivo, esperada", [
+    ("retrato.jpg", "Alegria"),         # sonriendo con los ojos achinados (no es enfado)
+    ("pulgar_arriba.jpg", "Alegria"),
+    ("dos_manos.jpg", "Beso"),          # labios en forma de beso
+])
+def test_expresion_en_fotos(cache, archivo, esperada):
+    import paso17_emociones as emo
+    from mediapipe.tasks.python import vision
+    emo.descargar_modelo()
+    detector = emo.crear_detector(vision.RunningMode.IMAGE)
+    try:
+        formas, puntos = emo.detectar(detector, foto(archivo))
+    finally:
+        detector.close()
+    assert puntos is not None
+    puntos_exp = emo.puntuar(formas)
+    assert max(puntos_exp, key=puntos_exp.get) == esperada, puntos_exp
+    assert puntos_exp[esperada] >= emo.UMBRAL
