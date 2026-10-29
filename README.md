@@ -16,6 +16,7 @@ Hecho con [OpenCV](https://opencv.org/) (cámara y dibujo) y [MediaPipe](https:/
 - Ratón virtual: mueve el cursor de Windows con la mano, clic con un pellizco, arrastrar y clic derecho.
 - Reconocimiento de identidad: te registras una vez y luego el programa dice tu nombre al verte.
 - Desbloqueo biométrico: cara + prueba de vida al azar (parpadeos y giro de cabeza) + PIN marcado con los dedos.
+- Control del PC con gestos: volumen, música (play/pausa, siguiente, anterior) y pasar diapositivas.
 - Reconocimiento de 7 gestos: puño, mano abierta, apuntar arriba, pulgar arriba/abajo, victoria y "te quiero".
 - Partículas con física (gravedad, rozamiento, brillo) que siguen el movimiento de los dedos. Pellizco = explosión.
 - Todo se activa y desactiva con el teclado.
@@ -51,7 +52,7 @@ source venv/bin/activate
 python sistema.py
 ```
 
-El script instala los paquetes del sistema que hacen falta (`python3-venv`, `python3-tk` para el ratón virtual, `libegl1`/`libgles2` para MediaPipe y `v4l-utils`), te añade al grupo `video` para poder usar la webcam, crea el entorno virtual e instala `requirements.txt`.
+El script instala los paquetes del sistema que hacen falta (`python3-venv`, `python3-tk` para el ratón virtual, `libegl1`/`libgles2` para MediaPipe, `v4l-utils` y `xdotool` para las teclas multimedia), te añade al grupo `video` para poder usar la webcam, crea el entorno virtual e instala `requirements.txt`.
 
 - **Webcam:** en Linux se abre con V4L2 (`/dev/video0`). Si no funciona, mira qué cámaras tienes con `v4l2-ctl --list-devices`. Si acabas de entrar en el grupo `video`, cierra sesión y vuelve a entrar.
 - **Ratón virtual:** solo funciona en sesiones **X11**. En **Wayland** (por defecto en Ubuntu 22.04+ y Fedora) el programa avisa y el cursor no se mueve. Elige "Ubuntu en Xorg" en la pantalla de inicio de sesión.
@@ -147,6 +148,27 @@ Detalles de seguridad que se aplican igual que en sistemas reales:
 
 **Límites:** frena fotos y vídeos grabados, pero no una máscara 3D realista ni un deepfake en tiempo real (los móviles usan cámaras de profundidad o infrarrojos para eso). Además, un PIN de 4 cifras del 1 al 5 solo tiene 625 combinaciones. Es un proyecto para aprender cómo funcionan estas defensas, no para proteger nada importante.
 
+## Control del PC con gestos
+
+```powershell
+python paso13_control.py
+```
+
+| Gesto | Modo música | Modo diapositivas |
+|-------|-------------|-------------------|
+| 👍 Pulgar arriba (mantener) | Subir volumen | Subir volumen |
+| 👎 Pulgar abajo (mantener) | Bajar volumen | Bajar volumen |
+| 🤟 "Te quiero" (mantener) | Silenciar | Silenciar |
+| ✊ Puño (mantener) | Play / pausa | — |
+| 🖐️ Mano abierta deslizando a la izquierda | Siguiente canción | Siguiente diapositiva |
+| 🖐️ Mano abierta deslizando a la derecha | Canción anterior | Diapositiva anterior |
+
+Teclas en la ventana de la cámara: `m` cambia entre modo música y diapositivas, `p` pausa el control y `q` sale.
+
+- Hay que **mantener** los gestos medio segundo, para que no se disparen sin querer.
+- **Diapositivas:** las flechas le llegan a la ventana activa. Después de abrir el programa, haz clic en la presentación (PowerPoint, Google Slides, un PDF...). El volumen y la música funcionan siempre.
+- **Linux:** usa `xdotool` para las teclas multimedia (lo instala `instalar_linux.sh`) y, como el ratón virtual, necesita una sesión X11.
+
 ## Pruebas
 
 Las pruebas comprueban que todo sigue funcionando después de cada cambio, sin tener que abrir la webcam:
@@ -179,6 +201,7 @@ Cada paso se puede ejecutar por separado, y `sistema.py` los une:
 | `paso10_raton.py` | Ratón virtual |
 | `paso11_reconocer.py` | Reconocimiento de identidad |
 | `paso12_desbloqueo.py` | Desbloqueo con cara, prueba de vida y PIN de dedos |
+| `paso13_control.py` | Control de música, volumen y diapositivas con gestos |
 | `hilos.py` | Cámara y detección en hilos separados (más FPS) |
 | `plataforma.py` | Diferencias entre Windows y Linux (cámara, ratón) |
 | `instalar_linux.sh` | Instalación en Linux |

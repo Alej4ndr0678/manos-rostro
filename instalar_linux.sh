@@ -5,8 +5,9 @@ set -e
 echo "1) Paquetes del sistema"
 # python3-venv: entornos virtuales | python3-tk: lo necesita pyautogui (raton virtual)
 # libegl1 y libgles2: graficos que usa MediaPipe | v4l-utils: para listar las webcams
+# xdotool: teclas multimedia (volumen, musica) del control por gestos
 sudo apt-get update
-sudo apt-get install -y python3-venv python3-tk python3-dev libegl1 libgles2 v4l-utils
+sudo apt-get install -y python3-venv python3-tk python3-dev libegl1 libgles2 v4l-utils xdotool
 
 echo "2) Permiso para usar la webcam (grupo 'video')"
 if ! id -nG "$USER" | grep -qw video; then
