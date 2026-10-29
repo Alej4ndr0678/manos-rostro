@@ -935,6 +935,66 @@ function pantallaCompleta() {
   else escenario.requestFullscreen?.().catch(() => estado("Este navegador no deja usar la pantalla completa."));
 }
 $("pantalla-completa").addEventListener("click", pantallaCompleta);
+
+// ---------- Grabar video ----------
+// Graba el lienzo (camara + efectos) y, si hay sonido (musica, juegos), tambien el audio.
+// Todo se queda en tu ordenador: al parar se descarga el archivo.
+const MAX_GRABACION = 60; // segundos
+let grabadora = null;
+
+function formatoVideo() {
+  const formatos = ["video/mp4;codecs=avc1,mp4a.40.2", "video/mp4;codecs=avc1", "video/webm;codecs=vp9", "video/webm", "video/mp4"];
+  return formatos.find((f) => window.MediaRecorder?.isTypeSupported(f)) ?? "";
+}
+
+function alternarGrabacion() {
+  if (grabadora) {
+    grabadora.recorder.stop();
+    return;
+  }
+  if (!window.MediaRecorder || !lienzo.captureStream) {
+    estado("Este navegador no puede grabar vídeo.");
+    return;
+  }
+  const flujo = lienzo.captureStream(30);
+  let destinoAudio = null;
+  if (sinte) {
+    destinoAudio = sinte.audio.createMediaStreamDestination();
+    sinte.salida.connect(destinoAudio);
+    for (const pista of destinoAudio.stream.getAudioTracks()) flujo.addTrack(pista);
+  }
+  const tipo = formatoVideo();
+  const recorder = new MediaRecorder(flujo, tipo ? { mimeType: tipo } : {});
+  const trozos = [];
+  recorder.ondataavailable = (e) => e.data.size && trozos.push(e.data);
+  recorder.onstop = () => {
+    clearInterval(grabadora.reloj);
+    if (destinoAudio) sinte.salida.disconnect(destinoAudio);
+    for (const pista of flujo.getTracks()) pista.stop();
+    grabadora = null;
+    $("grabar").textContent = "⏺ Grabar vídeo";
+    $("grabar").classList.remove("grabando");
+    const blob = new Blob(trozos, { type: recorder.mimeType || "video/webm" });
+    const enlace = document.createElement("a");
+    enlace.download = `manos-rostro-${modo}.${blob.type.includes("mp4") ? "mp4" : "webm"}`;
+    enlace.href = URL.createObjectURL(blob);
+    enlace.click();
+    setTimeout(() => URL.revokeObjectURL(enlace.href), 10000);
+  };
+  recorder.start(1000);
+  const inicio = performance.now();
+  grabadora = {
+    recorder,
+    reloj: setInterval(() => {
+      const s = Math.floor((performance.now() - inicio) / 1000);
+      $("grabar").textContent = `⏹ Parar (${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")})`;
+      if (s >= MAX_GRABACION) recorder.stop();
+    }, 250),
+  };
+  $("grabar").textContent = "⏹ Parar (0:00)";
+  $("grabar").classList.add("grabando");
+}
+$("grabar").addEventListener("click", alternarGrabacion);
 for (const boton of document.querySelectorAll("[data-modo]")) {
   boton.addEventListener("click", () => cambiarModo(boton.dataset.modo));
 }
@@ -950,6 +1010,7 @@ document.addEventListener("keydown", (e) => {
   if ($("controles").hidden) return;
   if (/^[1-9]$/.test(e.key)) cambiarModo(MODOS[Number(e.key) - 1]);
   if (e.key.toLowerCase() === "f") pantallaCompleta();
+  if (e.key.toLowerCase() === "g") alternarGrabacion();
   if (e.key === " " && modo === "juego") {
     e.preventDefault(); // que la barra espaciadora no haga scroll
     empezarPartida();
