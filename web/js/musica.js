@@ -164,6 +164,20 @@ export class Sintetizador {
     this.voz.volumen.gain.setTargetAtTime(volumen, t, 0.03);
   }
 
+  // Pitido corto (para los juegos)
+  bip(frecuencia, duracion = 0.08) {
+    const t = this.audio.currentTime;
+    const osc = this.audio.createOscillator();
+    const g = this.audio.createGain();
+    osc.type = "square";
+    osc.frequency.value = frecuencia;
+    g.gain.setValueAtTime(0.15, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + duracion);
+    osc.connect(g).connect(this.salida);
+    osc.start(t);
+    osc.stop(t + duracion);
+  }
+
   golpe(pad) {
     const a = this.audio;
     const t = a.currentTime;

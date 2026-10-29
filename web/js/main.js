@@ -11,6 +11,7 @@ import { dedosLevantados, Suavizador } from "./dedos.js";
 import { crearEscena, OBJETOS } from "./escena3d.js";
 import { Juego } from "./juego.js";
 import { Manipulador } from "./manipular.js";
+import { ALTO_PALA, Pong, PUNTOS_PARA_GANAR, X_PALAS } from "./pong.js";
 import { Bateria, nota, NUM_NOTAS, PADS, Sintetizador, Theremin } from "./musica.js";
 import { Particulas, PUNTAS } from "./particulas.js";
 import { ALTO_BARRA, PALETA, Pizarra, ZONA_SELECCION } from "./pintar.js";
@@ -65,6 +66,9 @@ let escena3d = null; // Three.js solo se carga al entrar en el modo 3D
 let cargandoEscena = null;
 let manipulador = null;
 let anteriorObjetos = null;
+let pong = null;
+let anteriorPong = null;
+const estela = []; // ultimas posiciones de la pelota
 const particulas = new Particulas();
 const suavizador = new Suavizador();
 let ultimoTiempoVideo = -1;
@@ -160,6 +164,15 @@ function texto(t, x, y, tamano = 28, color = "#fff") {
   ctx.strokeText(t, x, y);
   ctx.fillStyle = color;
   ctx.fillText(t, x, y);
+}
+
+// Texto centrado en horizontal; si no cabe (camara estrecha o movil), se reduce la letra
+function textoCentrado(t, y, tamano = 28, color = "#fff") {
+  ctx.font = `700 ${tamano}px system-ui, sans-serif`;
+  const ancho = ctx.measureText(t).width;
+  if (ancho > lienzo.width * 0.92) tamano = Math.floor((tamano * lienzo.width * 0.92) / ancho);
+  ctx.font = `700 ${tamano}px system-ui, sans-serif`;
+  texto(t, (lienzo.width - ctx.measureText(t).width) / 2, y, tamano, color);
 }
 
 function dibujarEsqueleto(mano) {
@@ -287,27 +300,19 @@ function dibujarJuego(manos, ahora) {
     ctx.stroke();
   }
 
-  const centro = (t, y, tamano, color) => {
-    // Si no cabe (camara estrecha o movil), se reduce la letra
-    ctx.font = `700 ${tamano}px system-ui, sans-serif`;
-    const ancho = ctx.measureText(t).width;
-    if (ancho > lienzo.width * 0.92) tamano = Math.floor((tamano * lienzo.width * 0.92) / ancho);
-    ctx.font = `700 ${tamano}px system-ui, sans-serif`;
-    texto(t, (lienzo.width - ctx.measureText(t).width) / 2, y, tamano, color);
-  };
   const medio = lienzo.height / 2;
   if (juego.estado === "inicio") {
-    centro("EXPLOTA LAS BOLAS DE LUZ", medio - 60, 48, "#67e8f9");
-    centro("Color +1 · Dorada +3 · Roja −5", medio, 30);
-    centro("Pulsa «Empezar partida» o Espacio", medio + 56, 26, "#4ade80");
-    centro(`Récord: ${juego.record}`, medio + 104, 24);
+    textoCentrado("EXPLOTA LAS BOLAS DE LUZ", medio - 60, 48, "#67e8f9");
+    textoCentrado("Color +1 · Dorada +3 · Roja −5", medio, 30);
+    textoCentrado("Pulsa «Empezar partida» o Espacio", medio + 56, 26, "#4ade80");
+    textoCentrado(`Récord: ${juego.record}`, medio + 104, 24);
   } else if (juego.estado === "jugando") {
     texto(`Puntos: ${juego.puntos}`, 16, 44, 32);
-    centro(`${Math.ceil(juego.tiempoRestante(ahora))}`, 48, 40, "#fbbf24");
+    textoCentrado(`${Math.ceil(juego.tiempoRestante(ahora))}`, 48, 40, "#fbbf24");
   } else {
-    centro("FIN DEL JUEGO", medio - 60, 56, "#f87171");
-    centro(`Puntos: ${juego.puntos}`, medio, 36);
-    centro(juego.nuevoRecord ? "¡NUEVO RÉCORD!" : `Récord: ${juego.record}`, medio + 50, 30, "#fbbf24");
+    textoCentrado("FIN DEL JUEGO", medio - 60, 56, "#f87171");
+    textoCentrado(`Puntos: ${juego.puntos}`, medio, 36);
+    textoCentrado(juego.nuevoRecord ? "¡NUEVO RÉCORD!" : `Récord: ${juego.record}`, medio + 50, 30, "#fbbf24");
   }
 }
 
@@ -542,6 +547,81 @@ function dibujarObjetos(manos, ahora) {
   if (dos) texto(`×${dos.obj.escala.toFixed(1)}`, dos.obj.x * W + 20, dos.obj.y * H - 60, 32, "#fbbf24");
 }
 
+// ---------- Pong ----------
+
+function dibujarPong(manos, ahora) {
+  const W = lienzo.width;
+  const H = lienzo.height;
+  pong ??= new Pong(W / H);
+  const dt = anteriorPong === null ? 1 / 60 : ahora - anteriorPong;
+  anteriorPong = ahora;
+  // La mano de cada mitad mueve su pala (con el centro de la palma, que tiembla menos)
+  const y = [null, null];
+  for (const m of manos) {
+    const lado = m.puntos[9].x < W / 2 ? 0 : 1;
+    y[lado] = m.puntos[9].y / H;
+  }
+  const evento = pong.actualizar(y, dt, ahora);
+  if (evento === "golpe") sinte?.bip(660 + pong.golpes * 20);
+  else if (evento?.startsWith("punto")) sinte?.bip(220, 0.3);
+  else if (evento === "fin") [523, 659, 784].forEach((f, i) => setTimeout(() => sinte?.bip(f, 0.2), i * 180));
+
+  // Campo
+  ctx.strokeStyle = "rgba(255,255,255,0.35)";
+  ctx.setLineDash([14, 14]);
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(W / 2, 0);
+  ctx.lineTo(W / 2, H);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  textoCentrado(`${pong.marcador[0]}   ${pong.marcador[1]}`, 86, 72);
+
+  // Palas: brillan en el color de cada lado; "CPU" si la mueve el ordenador
+  ["#38bdf8", "#fb923c"].forEach((color, i) => {
+    const x = X_PALAS[i] * W;
+    const alto = ALTO_PALA * H;
+    ctx.save();
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 25;
+    ctx.fillStyle = color;
+    ctx.fillRect(x - 9, pong.palas[i] * H - alto / 2, 18, alto);
+    ctx.restore();
+    if (y[i] === null) texto("CPU", i === 0 ? x + 18 : x - 70, pong.palas[i] * H + 8, 22, color);
+  });
+
+  // Pelota con estela
+  const b = pong.pelota;
+  estela.push({ x: b.x * W, y: b.y * H });
+  if (estela.length > 12) estela.shift();
+  estela.forEach((p, i) => {
+    ctx.fillStyle = `rgba(250, 204, 21, ${(i / estela.length) * 0.5})`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, b.radio * H * (0.4 + (0.6 * i) / estela.length), 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.save();
+  ctx.shadowColor = "#facc15";
+  ctx.shadowBlur = 30;
+  ctx.fillStyle = "#fef08a";
+  ctx.beginPath();
+  ctx.arc(b.x * W, b.y * H, b.radio * H, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  if (pong.estado === "fin") {
+    textoCentrado(pong.ganador === 0 ? "¡GANA LA IZQUIERDA!" : "¡GANA LA DERECHA!", H / 2, 56, "#fbbf24");
+    textoCentrado("Pulsa «Nueva partida» o Espacio", H / 2 + 56, 28, "#4ade80");
+  } else if (pong.marcador[0] + pong.marcador[1] === 0 && pong.golpes === 0) {
+    textoCentrado(`Una mano en cada mitad · gana quien llegue a ${PUNTOS_PARA_GANAR}`, H - 30, 26, "#e4e4e7");
+  }
+}
+
+function nuevaPartidaPong() {
+  pong?.reiniciar();
+  estela.length = 0;
+}
+
 function bucle() {
   const ahora = performance.now();
   // Solo detectamos cuando la camara da un frame nuevo
@@ -572,6 +652,8 @@ function bucle() {
   if (modo === "particulas") {
     particulas.procesar(manos);
     particulas.actualizarYDibujar(ctx);
+  } else if (modo === "pong") {
+    dibujarPong(manos, ahora / 1000);
   } else if (modo === "objetos") {
     dibujarObjetos(manos, ahora / 1000);
   } else if (modo === "musica") {
@@ -595,7 +677,7 @@ function bucle() {
   }
 
   for (const mano of manos) {
-    if ($("ver-manos").checked && !["juego", "avatar", "musica", "objetos"].includes(modo)) dibujarEsqueleto(mano);
+    if ($("ver-manos").checked && !["juego", "avatar", "musica", "objetos", "pong"].includes(modo)) dibujarEsqueleto(mano);
     const n = mano.dedos.filter(Boolean).length;
     total += n;
     if (modo === "deteccion") {
@@ -629,7 +711,8 @@ function cambiarModo(nuevo) {
   $("ayuda-musica").hidden = modo !== "musica";
   $("ayuda-objetos").hidden = modo !== "objetos";
   if (modo === "objetos") cargarEscena();
-  if (modo === "musica") activarAudio();
+  $("ayuda-pong").hidden = modo !== "pong";
+  if (modo === "musica" || modo === "pong") activarAudio();
   else sinte?.tocar(null);
   if (modo === "avatar") cargarMalla();
 }
@@ -648,15 +731,20 @@ $("guardar").addEventListener("click", () => {
 $("jugar").addEventListener("click", empezarPartida);
 document.addEventListener("keydown", (e) => {
   if ($("controles").hidden) return;
-  const modos = { 1: "deteccion", 2: "particulas", 3: "pintar", 4: "juego", 5: "avatar", 6: "musica", 7: "objetos" };
+  const modos = { 1: "deteccion", 2: "particulas", 3: "pintar", 4: "juego", 5: "avatar", 6: "musica", 7: "objetos", 8: "pong" };
   if (modos[e.key]) cambiarModo(modos[e.key]);
   if (e.key === " " && modo === "juego") {
     e.preventDefault(); // que la barra espaciadora no haga scroll
     empezarPartida();
   }
+  if (e.key === " " && modo === "pong") {
+    e.preventDefault();
+    if (pong?.estado === "fin") nuevaPartidaPong();
+  }
   if (e.key.toLowerCase() === "a" && modo === "avatar") cambiarEstilo(estiloAvatar + 1);
 });
 $("reiniciar-objetos").addEventListener("click", reiniciarObjetos);
+$("nueva-pong").addEventListener("click", nuevaPartidaPong);
 for (const boton of document.querySelectorAll("[data-instrumento]")) {
   boton.addEventListener("click", () => cambiarInstrumento(boton.dataset.instrumento));
 }
