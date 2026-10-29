@@ -70,6 +70,7 @@ class DetectorEnHilo:
         self.candado = threading.Lock()
         self.hay_trabajo = threading.Event()
         self.inicio = time.monotonic()
+        self.ultimo_ts = -1           # MediaPipe exige timestamps estrictamente crecientes
         self.hilo = threading.Thread(target=self._trabajar, daemon=True)
         self.hilo.start()
 
@@ -90,7 +91,11 @@ class DetectorEnHilo:
             if frame is None:
                 continue
             ahora = time.monotonic()
-            resultado = self.funcion(frame, int((ahora - self.inicio) * 1000))
+            # En Windows el reloj puede dar el mismo milisegundo dos veces seguidas, y
+            # MediaPipe lanza "Input timestamp must be monotonically increasing": forzamos +1
+            ts = max(int((ahora - self.inicio) * 1000), self.ultimo_ts + 1)
+            self.ultimo_ts = ts
+            resultado = self.funcion(frame, ts)
             with self.candado:
                 self.resultado = resultado
                 self.numero += 1
