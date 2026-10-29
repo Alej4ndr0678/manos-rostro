@@ -202,7 +202,7 @@ def informe():
     print("Matriz de confusion (filas = sena real, columnas = lo que predijo):")
     matriz = confusion_matrix(y, predicciones, labels=clases)
     print("      " + " ".join(f"{c:>5}" for c in clases))
-    for c, fila in zip(clases, matriz):
+    for c, fila in zip(clases, matriz, strict=True):
         print(f"{c:>5} " + " ".join(f"{v:5d}" for v in fila))
 
 

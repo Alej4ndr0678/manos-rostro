@@ -28,7 +28,7 @@ def test_estan_todas_las_teclas(teclas):
 
 
 def test_las_teclas_no_se_solapan_y_caben(teclas):
-    for e, x1, y1, x2, y2 in teclas:
+    for _, x1, y1, x2, y2 in teclas:
         assert tec.IZQUIERDA <= x1 < x2 <= tec.DERECHA
         assert tec.ARRIBA <= y1 < y2 <= tec.ABAJO + 1e-9
     for i, a in enumerate(teclas):

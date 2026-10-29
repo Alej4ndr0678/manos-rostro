@@ -1,0 +1,12 @@
+# Configuracion de ruff: el "linter" que revisa el estilo y busca errores tipicos
+# (imports sin usar, variables que no existen, imports desordenados...).
+#   ruff check .          -> revisa
+#   ruff check . --fix    -> arregla solo lo que sabe arreglar sin riesgo
+target-version = "py312"
+line-length = 130
+src = [".", "tests"]
+
+[lint]
+# E/W = estilo PEP 8, F = errores (pyflakes), I = orden de imports,
+# B = fallos tipicos (bugbear), UP = sintaxis moderna de Python
+select = ["E", "F", "W", "I", "B", "UP"]

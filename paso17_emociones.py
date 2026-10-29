@@ -21,8 +21,7 @@ import urllib.request
 import cv2
 import mediapipe as mp
 import numpy as np
-from mediapipe.tasks.python import BaseOptions
-from mediapipe.tasks.python import vision
+from mediapipe.tasks.python import BaseOptions, vision
 
 import plataforma
 

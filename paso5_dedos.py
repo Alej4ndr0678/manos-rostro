@@ -33,7 +33,7 @@ def angulo(a, b, c, d):
     # 0 = dedo totalmente recto; cuanto mas se dobla, mayor el angulo.
     v1 = (b.x - a.x, b.y - a.y, b.z - a.z)
     v2 = (d.x - c.x, d.y - c.y, d.z - c.z)
-    producto = sum(x * y for x, y in zip(v1, v2))
+    producto = sum(x * y for x, y in zip(v1, v2, strict=True))
     normas = math.hypot(*v1) * math.hypot(*v2)
     return math.degrees(math.acos(max(-1.0, min(1.0, producto / normas))))
 
@@ -77,7 +77,7 @@ def dibujar_conteo(frame, resultado, historial, debug=False):
                     cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 165, 255), 3)
         if debug:
             # Modo depuracion: que dedos cree que estan levantados (ej. "P0 I1 C1 A0 M0")
-            detalle = " ".join(f"{nombre}{int(arriba)}" for nombre, arriba in zip(NOMBRES, estado))
+            detalle = " ".join(f"{nombre}{int(arriba)}" for nombre, arriba in zip(NOMBRES, estado, strict=True))
             muneca = (int(puntos[0].x * ancho) - 60, int(puntos[0].y * alto) + 60)
             cv2.putText(frame, detalle, muneca, cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 165, 255), 2)
     return total

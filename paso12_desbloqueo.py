@@ -32,12 +32,10 @@ import sys
 import time
 import urllib.request
 from dataclasses import dataclass
-from typing import Optional
 
 import cv2
 import mediapipe as mp
-from mediapipe.tasks.python import BaseOptions
-from mediapipe.tasks.python import vision
+from mediapipe.tasks.python import BaseOptions, vision
 
 import paso5_dedos as dedos
 import paso7_gestos as gestos
@@ -179,10 +177,10 @@ class LectorPin:
 @dataclass
 class Observacion:
     caras: int = 0                       # cuantas caras se ven
-    nombre: Optional[str] = None         # quien es (o "Desconocido")
-    parpadeo: Optional[float] = None     # 0 a 1, solo en la fase de vida
-    giro: Optional[float] = None         # 0 a 1, solo en la fase de vida
-    dedos: Optional[int] = None          # dedos levantados, solo en la fase de PIN
+    nombre: str | None = None            # quien es (o "Desconocido")
+    parpadeo: float | None = None        # 0 a 1, solo en la fase de vida
+    giro: float | None = None            # 0 a 1, solo en la fase de vida
+    dedos: int | None = None             # dedos levantados, solo en la fase de PIN
 
 
 class Desbloqueo:

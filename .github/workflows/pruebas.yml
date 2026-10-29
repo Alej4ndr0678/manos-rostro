@@ -8,6 +8,18 @@ on:
   pull_request:
 
 jobs:
+  # Revisa el estilo y errores tipicos con ruff (configurado en ruff.toml). Es muy rapido.
+  estilo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install ruff==0.17.3
+      - name: ruff
+        run: ruff check --output-format=github .
+
   pruebas:
     strategy:
       fail-fast: false
@@ -35,7 +47,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: tests/.cache
-          key: modelos-v1
+          key: modelos-v2   # subir el numero si se anaden fotos o modelos nuevos
 
       - name: Pruebas rapidas (logica, sin modelos)
         run: python -m pytest -m "not modelos" -v

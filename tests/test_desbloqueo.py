@@ -190,7 +190,7 @@ def test_perder_la_cara_un_momento_no_cancela():
 def test_pin_incorrecto_y_bloqueo_tras_tres_fallos():
     d, registro = nuevo()
     t = 0.0
-    for intento in range(des.MAX_INTENTOS):
+    for _ in range(des.MAX_INTENTOS):
         t = pasar_vida(d, pasar_cara(d, t))
         t = marcar_pin(d, "1111", t)
         assert d.estado in ("denegado", "bloqueado")
