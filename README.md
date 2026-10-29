@@ -258,7 +258,7 @@ El modelo de malla facial devuelve 52 **blendshapes**: números de 0 a 1 que dic
 
 ## Versión web
 
-La carpeta `web/` tiene una versión que funciona en el navegador con [MediaPipe para JavaScript](https://ai.google.dev/edge/mediapipe/solutions/vision/gesture_recognizer/web_js): detección de manos, dedos, gestos y rostro, partículas, pintar en el aire y el **minijuego** de las bolas de luz (modo 4; el récord se guarda en el navegador). Se publica sola en **GitHub Pages**: https://alej4ndr0678.github.io/manos-rostro/
+La carpeta `web/` tiene una versión que funciona en el navegador con [MediaPipe para JavaScript](https://ai.google.dev/edge/mediapipe/solutions/vision/gesture_recognizer/web_js): detección de manos, dedos, gestos y rostro, partículas, pintar en el aire, el **minijuego** de las bolas de luz (modo 4; el récord se guarda en el navegador) y un **avatar** que imita tu cara (modo 5). Se publica sola en **GitHub Pages**: https://alej4ndr0678.github.io/manos-rostro/
 
 - **Privacidad:** todo se procesa en tu dispositivo. El vídeo no sale del navegador.
 - **Probarla en local:** la cámara solo funciona con HTTPS o en `localhost`:
@@ -267,7 +267,8 @@ La carpeta `web/` tiene una versión que funciona en el navegador con [MediaPipe
   python -m http.server 8000
   ```
   y abre http://localhost:8000
-- **Código:** `js/dedos.js` (contador de dedos, la misma lógica que `paso5_dedos.py`), `js/particulas.js`, `js/pintar.js`, `js/juego.js` (el minijuego, la misma lógica que `paso9_juego.py`) y `js/main.js` (cámara, modelos y dibujo). Las pruebas de la lógica están en `web/tests/` y se ejecutan con `npm test` dentro de `web/` (hace falta [Node.js](https://nodejs.org/)).
+- **Avatar (modo 5):** un personaje (emoji, gato o robot) tapa tu cara y copia tus expresiones: parpadeos y guiños, cejas, sonrisa, boca abierta, morritos, mirada y giro e inclinación de la cabeza. Usa los 52 *blendshapes* de la malla facial y, si hay varias personas, cada una lleva el suyo. La tecla `a` cambia de personaje, «Ocultar la cámara» deja solo el avatar sobre un fondo y «Foto» guarda la imagen.
+- **Código:** `js/dedos.js` (contador de dedos, la misma lógica que `paso5_dedos.py`), `js/particulas.js`, `js/pintar.js`, `js/juego.js` (el minijuego, la misma lógica que `paso9_juego.py`), `js/avatar.js` y `js/main.js` (cámara, modelos y dibujo). Las pruebas de la lógica están en `web/tests/` y se ejecutan con `npm test` dentro de `web/` (hace falta [Node.js](https://nodejs.org/)).
 - **Publicación:** `.github/workflows/web.yml` la sube a GitHub Pages en cada push a `main` que cambie `web/`. Hay que activarlo una vez en *Settings → Pages → Source: GitHub Actions*.
 
 ## Pruebas
