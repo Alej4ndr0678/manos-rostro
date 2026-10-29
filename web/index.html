@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Manos y Rostro</title>
-  <meta name="description" content="Detección de manos y rostro en tiempo real en el navegador con MediaPipe: dedos, gestos, partículas, pintar en el aire y un minijuego.">
+  <meta name="description" content="Detección de manos y rostro en tiempo real en el navegador con MediaPipe: dedos, gestos, partículas, pintar en el aire, un minijuego y un avatar que imita tu cara.">
   <link rel="stylesheet" href="estilos.css">
 </head>
 <body>
@@ -31,6 +31,7 @@
         <button data-modo="particulas" aria-pressed="false">2 · Partículas</button>
         <button data-modo="pintar" aria-pressed="false">3 · Pintar</button>
         <button data-modo="juego" aria-pressed="false">4 · Juego</button>
+        <button data-modo="avatar" aria-pressed="false">5 · Avatar</button>
       </div>
 
       <div class="opciones">
@@ -56,6 +57,18 @@
         <p>Explota las bolas con las <strong>puntas de los dedos</strong>: color <strong>+1</strong> ·
           dorada <strong>+3</strong> · roja <strong>−5</strong> (¡no la toques!). Tienes 60 segundos.</p>
         <button id="jugar" class="principal">Empezar partida</button>
+      </div>
+
+      <div id="ayuda-avatar" class="ayuda" hidden>
+        <p>Un personaje imita tu cara: <strong>parpadea</strong>, <strong>sube las cejas</strong>, <strong>sonríe</strong>,
+          <strong>abre la boca</strong>, haz <strong>morritos</strong> o <strong>gira la cabeza</strong>. Si hay varias personas, cada una tiene el suyo.</p>
+        <div class="modos" role="group" aria-label="Personaje">
+          <button data-estilo="emoji" aria-pressed="true">😀 Emoji</button>
+          <button data-estilo="gato" aria-pressed="false">🐱 Gato</button>
+          <button data-estilo="robot" aria-pressed="false">🤖 Robot</button>
+        </div>
+        <label><input type="checkbox" id="solo-avatar"> Ocultar la cámara</label>
+        <button id="foto-avatar">Foto</button>
       </div>
     </section>
   </main>

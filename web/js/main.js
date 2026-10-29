@@ -2,9 +2,11 @@
 // Todo se procesa en TU ordenador: el video de la camara no se envia a ningun servidor.
 import {
   FaceDetector,
+  FaceLandmarker,
   FilesetResolver,
   GestureRecognizer,
 } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.1/vision_bundle.mjs";
+import { dibujarAvatar, ESTILOS, parametros, pose, Suavizado } from "./avatar.js";
 import { dedosLevantados, Suavizador } from "./dedos.js";
 import { Juego } from "./juego.js";
 import { Particulas, PUNTAS } from "./particulas.js";
@@ -13,6 +15,8 @@ import { ALTO_BARRA, PALETA, Pizarra, ZONA_SELECCION } from "./pintar.js";
 const WASM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.1/wasm";
 const MODELO_GESTOS =
   "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/latest/gesture_recognizer.task";
+const MODELO_MALLA =
+  "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task";
 const MODELO_ROSTRO =
   "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/latest/blaze_face_short_range.tflite";
 
@@ -42,6 +46,13 @@ let detectorRostro = null;
 let modo = "deteccion";
 let pizarra = null;
 let juego = null;
+let archivosVision = null;
+let delegado = "GPU";
+let malla = null; // malla facial (solo se carga al entrar en el modo avatar)
+let cargandoMalla = null;
+let resultadoMalla = null;
+let estiloAvatar = 0;
+const suavizadosAvatar = [];
 const particulas = new Particulas();
 const suavizador = new Suavizador();
 let ultimoTiempoVideo = -1;
@@ -56,6 +67,7 @@ function estado(texto) {
 
 async function crearModelos() {
   const archivos = await FilesetResolver.forVisionTasks(WASM);
+  archivosVision = archivos;
   // Intentamos usar la GPU; si el navegador no puede, la CPU
   for (const delegate of ["GPU", "CPU"]) {
     try {
@@ -68,6 +80,7 @@ async function crearModelos() {
         baseOptions: { modelAssetPath: MODELO_ROSTRO, delegate },
         runningMode: "VIDEO",
       });
+      delegado = delegate;
       return delegate;
     } catch (error) {
       console.warn(`No se pudo usar ${delegate}:`, error);
@@ -285,13 +298,79 @@ function dibujarJuego(manos, ahora) {
   }
 }
 
+// ---------- Avatar ----------
+
+function cargarMalla() {
+  cargandoMalla ??= (async () => {
+    estado("Cargando la malla facial…");
+    for (const delegate of [delegado, "CPU"]) {
+      try {
+        malla = await FaceLandmarker.createFromOptions(archivosVision, {
+          baseOptions: { modelAssetPath: MODELO_MALLA, delegate },
+          runningMode: "VIDEO",
+          numFaces: 3,
+          outputFaceBlendshapes: true,
+        });
+        estado(`Funcionando (${delegado})`);
+        return;
+      } catch (error) {
+        console.warn(`Malla facial con ${delegate}:`, error);
+      }
+    }
+    estado("No se pudo cargar la malla facial.");
+  })();
+  return cargandoMalla;
+}
+
+function cambiarEstilo(i) {
+  estiloAvatar = (i + ESTILOS.length) % ESTILOS.length;
+  for (const boton of document.querySelectorAll("[data-estilo]")) {
+    boton.setAttribute("aria-pressed", String(boton.dataset.estilo === ESTILOS[estiloAvatar]));
+  }
+}
+
+function dibujarAvatares() {
+  if (!resultadoMalla) {
+    texto("Cargando la malla facial…", 16, 44, 28);
+    return 0;
+  }
+  const soloAvatar = $("solo-avatar").checked;
+  if (soloAvatar) {
+    const fondo = ctx.createLinearGradient(0, 0, 0, lienzo.height);
+    fondo.addColorStop(0, "#1e1b4b");
+    fondo.addColorStop(1, "#0f766e");
+    ctx.fillStyle = fondo;
+    ctx.fillRect(0, 0, lienzo.width, lienzo.height);
+  }
+  resultadoMalla.faceLandmarks.forEach((puntos, i) => {
+    const px = puntos.map(aPixeles);
+    const g = pose(px);
+    const formas = Object.fromEntries(resultadoMalla.faceBlendshapes[i].categories.map((c) => [c.categoryName, c.score]));
+    suavizadosAvatar[i] ??= new Suavizado(0.5);
+    const p = suavizadosAvatar[i].actualizar({ ...parametros(formas), yaw: g.yaw, pitch: g.pitch, roll: g.roll });
+    // Cada cara con un estilo distinto: la primera el elegido, las demas los siguientes
+    const estilo = ESTILOS[(estiloAvatar + i) % ESTILOS.length];
+    const radio = Math.max(g.ancho * 0.62, g.alto * 0.55) * (soloAvatar ? 1.2 : 1);
+    // Que no se salga por arriba (las orejas y la antena sobresalen)
+    const y = soloAvatar ? Math.max(g.y, radio * 1.45) : g.y;
+    ctx.save();
+    ctx.translate(g.x, y);
+    ctx.rotate(p.roll);
+    ctx.scale(radio, radio);
+    dibujarAvatar(ctx, p, { yaw: p.yaw, pitch: p.pitch }, estilo);
+    ctx.restore();
+  });
+  return resultadoMalla.faceLandmarks.length;
+}
+
 function bucle() {
   const ahora = performance.now();
   // Solo detectamos cuando la camara da un frame nuevo
   if (video.currentTime !== ultimoTiempoVideo) {
     ultimoTiempoVideo = video.currentTime;
     resultadoManos = reconocedor.recognizeForVideo(video, ahora);
-    resultadoRostro = $("ver-rostro").checked ? detectorRostro.detectForVideo(video, ahora) : null;
+    resultadoRostro = $("ver-rostro").checked && modo !== "avatar" ? detectorRostro.detectForVideo(video, ahora) : null;
+    resultadoMalla = modo === "avatar" && malla ? malla.detectForVideo(video, ahora) : null;
   }
   fps = 0.9 * fps + 0.1 * (1000 / Math.max(ahora - anterior, 1));
   anterior = ahora;
@@ -302,13 +381,13 @@ function bucle() {
   ctx.scale(-1, 1);
   ctx.drawImage(video, 0, 0, lienzo.width, lienzo.height);
   ctx.restore();
-  if (modo !== "deteccion") {
+  if (modo !== "deteccion" && modo !== "avatar") {
     ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
     ctx.fillRect(0, 0, lienzo.width, lienzo.height);
   }
 
   const manos = manosEnPixeles();
-  const rostros = dibujarRostros();
+  const rostros = modo === "avatar" ? dibujarAvatares() : dibujarRostros();
   let total = 0;
 
   if (modo === "particulas") {
@@ -333,7 +412,7 @@ function bucle() {
   }
 
   for (const mano of manos) {
-    if ($("ver-manos").checked && modo !== "juego") dibujarEsqueleto(mano);
+    if ($("ver-manos").checked && modo !== "juego" && modo !== "avatar") dibujarEsqueleto(mano);
     const n = mano.dedos.filter(Boolean).length;
     total += n;
     if (modo === "deteccion") {
@@ -363,6 +442,8 @@ function cambiarModo(nuevo) {
   if (modo !== "particulas" && modo !== "juego") particulas.vaciar();
   $("ayuda-pintar").hidden = modo !== "pintar";
   $("ayuda-juego").hidden = modo !== "juego";
+  $("ayuda-avatar").hidden = modo !== "avatar";
+  if (modo === "avatar") cargarMalla();
 }
 
 $("empezar").addEventListener("click", empezar);
@@ -379,12 +460,22 @@ $("guardar").addEventListener("click", () => {
 $("jugar").addEventListener("click", empezarPartida);
 document.addEventListener("keydown", (e) => {
   if ($("controles").hidden) return;
-  const modos = { 1: "deteccion", 2: "particulas", 3: "pintar", 4: "juego" };
+  const modos = { 1: "deteccion", 2: "particulas", 3: "pintar", 4: "juego", 5: "avatar" };
   if (modos[e.key]) cambiarModo(modos[e.key]);
   if (e.key === " " && modo === "juego") {
     e.preventDefault(); // que la barra espaciadora no haga scroll
     empezarPartida();
   }
+  if (e.key.toLowerCase() === "a" && modo === "avatar") cambiarEstilo(estiloAvatar + 1);
+});
+for (const boton of document.querySelectorAll("[data-estilo]")) {
+  boton.addEventListener("click", () => cambiarEstilo(ESTILOS.indexOf(boton.dataset.estilo)));
+}
+$("foto-avatar").addEventListener("click", () => {
+  const enlace = document.createElement("a");
+  enlace.download = "avatar.png";
+  enlace.href = lienzo.toDataURL("image/png");
+  enlace.click();
 });
 if (!navigator.mediaDevices?.getUserMedia) {
   estado("Este navegador no permite usar la cámara (hace falta HTTPS o localhost).");
