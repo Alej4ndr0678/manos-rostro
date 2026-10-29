@@ -9,6 +9,7 @@ import {
 import { dibujarAvatar, ESTILOS, parametros, pose, Suavizado } from "./avatar.js";
 import { dedosLevantados, Suavizador } from "./dedos.js";
 import { Juego } from "./juego.js";
+import { Bateria, nota, NUM_NOTAS, PADS, Sintetizador, Theremin } from "./musica.js";
 import { Particulas, PUNTAS } from "./particulas.js";
 import { ALTO_BARRA, PALETA, Pizarra, ZONA_SELECCION } from "./pintar.js";
 
@@ -53,6 +54,11 @@ let cargandoMalla = null;
 let resultadoMalla = null;
 let estiloAvatar = 0;
 const suavizadosAvatar = [];
+let sinte = null; // se crea al entrar en el modo musica (el navegador exige un clic antes de sonar)
+const bateria = new Bateria();
+const theremin = new Theremin();
+let instrumento = "sintetizador";
+const ondas = []; // circulos que se expanden al golpear un pad
 const particulas = new Particulas();
 const suavizador = new Suavizador();
 let ultimoTiempoVideo = -1;
@@ -143,6 +149,7 @@ function manosEnPixeles() {
 function texto(t, x, y, tamano = 28, color = "#fff") {
   ctx.font = `700 ${tamano}px system-ui, sans-serif`;
   ctx.lineWidth = 6;
+  ctx.lineJoin = "round"; // sin esto, letras como la M sacan "pinchos" en el borde
   ctx.strokeStyle = "rgba(0,0,0,0.8)";
   ctx.strokeText(t, x, y);
   ctx.fillStyle = color;
@@ -363,6 +370,117 @@ function dibujarAvatares() {
   return resultadoMalla.faceLandmarks.length;
 }
 
+// ---------- Musica ----------
+
+function activarAudio() {
+  try {
+    if (!sinte) sinte = new Sintetizador(new AudioContext());
+    sinte.audio.resume();
+  } catch (error) {
+    console.warn("Sin audio:", error);
+    estado("Este navegador no deja reproducir sonido.");
+  }
+}
+
+function cambiarInstrumento(nombre) {
+  instrumento = nombre;
+  for (const boton of document.querySelectorAll("[data-instrumento]")) {
+    boton.setAttribute("aria-pressed", String(boton.dataset.instrumento === nombre));
+  }
+}
+
+function dibujarMusica(manos, ahora) {
+  const W = lienzo.width;
+  const H = lienzo.height;
+  // Dedos que golpean la bateria: puntas del indice y del corazon de cada mano
+  const palillos = manos.flatMap((m) => [8, 12].map((i) => ({ clave: `${m.lado}-${i}`, x: m.puntos[i].x / W, y: m.puntos[i].y / H })));
+  for (const pad of bateria.actualizar(palillos, ahora)) {
+    sinte?.golpe(pad);
+    const z = bateria.zonas[pad];
+    ondas.push({ x: (z.x + z.w / 2) * W, y: (z.y + z.h / 2) * H, desde: ahora, color: PADS[pad].color });
+  }
+  // La mano que este en la mitad derecha toca el theremin
+  const mano = manos.find((m) => m.puntos[8].x / W >= 0.5);
+  const { nota: n } = theremin.actualizar(
+    mano ? { x: mano.puntos[8].x / W, y: mano.puntos[8].y / H, abierta: mano.dedos.filter(Boolean).length >= 2 } : null,
+  );
+  sinte?.tocar(n, theremin.timbre, instrumento);
+
+  // Theremin: una franja por nota (arriba agudo, abajo grave)
+  const altoNota = H / NUM_NOTAS;
+  for (let i = 0; i < NUM_NOTAS; i++) {
+    const y = H - (i + 1) * altoNota;
+    const activa = i === n;
+    ctx.fillStyle = activa ? "rgba(167, 139, 250, 0.55)" : i % 2 ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.12)";
+    ctx.fillRect(W / 2, y, W / 2, altoNota);
+    ctx.font = "600 16px system-ui, sans-serif";
+    ctx.fillStyle = activa ? "#fff" : "rgba(255,255,255,0.6)";
+    ctx.fillText(nota(i).nombre, W - 48, y + altoNota / 2 + 6);
+  }
+  ctx.strokeStyle = "rgba(255,255,255,0.5)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(W / 2, 0);
+  ctx.lineTo(W / 2, H);
+  ctx.stroke();
+  texto("BATERÍA", 16, 40, 26, "#fbbf24");
+  texto("THEREMIN", W / 2 + 16, 40, 26, "#c4b5fd");
+
+  // Pads
+  bateria.zonas.forEach((z, i) => {
+    const brillo = bateria.brillo(i, ahora);
+    ctx.save();
+    ctx.globalAlpha = 0.35 + brillo * 0.65;
+    ctx.fillStyle = PADS[i].color;
+    ctx.shadowColor = PADS[i].color;
+    ctx.shadowBlur = 40 * brillo;
+    ctx.fillRect(z.x * W, z.y * H, z.w * W, z.h * H);
+    ctx.restore();
+    texto(PADS[i].nombre, z.x * W + 12, z.y * H + 32, 22);
+  });
+  for (let i = ondas.length - 1; i >= 0; i--) {
+    const o = ondas[i];
+    const t = (ahora - o.desde) / 0.5;
+    if (t >= 1) {
+      ondas.splice(i, 1);
+      continue;
+    }
+    ctx.strokeStyle = o.color;
+    ctx.globalAlpha = 1 - t;
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.arc(o.x, o.y, 20 + t * 160, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // Palillos y cursor del theremin
+  for (const p of palillos) {
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.arc(p.x * W, p.y * H, 7, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  if (mano) {
+    const { x, y } = mano.puntos[8];
+    ctx.save();
+    ctx.shadowColor = "#a78bfa";
+    ctx.shadowBlur = n === null ? 0 : 30;
+    ctx.fillStyle = n === null ? "rgba(255,255,255,0.5)" : "#a78bfa";
+    ctx.beginPath();
+    ctx.arc(x, y, n === null ? 12 : 18 + 4 * Math.sin(ahora * 30), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    const etiqueta = n === null ? "✊ silencio" : nota(n).nombre;
+    ctx.font = "700 30px system-ui, sans-serif";
+    const ancho = ctx.measureText(etiqueta).width;
+    // A la derecha del dedo, o a la izquierda si no cabe
+    const tx = x + 24 + ancho > W - 8 ? x - 24 - ancho : x + 24;
+    texto(etiqueta, tx, Math.max(y - 16, 70), 30, n === null ? "#fff" : "#ddd6fe");
+  }
+  if (!sinte) texto("Pulsa el botón «6 · Música» para activar el sonido", 16, H - 20, 22, "#f87171");
+}
+
 function bucle() {
   const ahora = performance.now();
   // Solo detectamos cuando la camara da un frame nuevo
@@ -393,6 +511,8 @@ function bucle() {
   if (modo === "particulas") {
     particulas.procesar(manos);
     particulas.actualizarYDibujar(ctx);
+  } else if (modo === "musica") {
+    dibujarMusica(manos, ahora / 1000);
   } else if (modo === "juego") {
     dibujarJuego(manos, ahora / 1000);
   } else if (modo === "pintar") {
@@ -412,7 +532,7 @@ function bucle() {
   }
 
   for (const mano of manos) {
-    if ($("ver-manos").checked && modo !== "juego" && modo !== "avatar") dibujarEsqueleto(mano);
+    if ($("ver-manos").checked && !["juego", "avatar", "musica"].includes(modo)) dibujarEsqueleto(mano);
     const n = mano.dedos.filter(Boolean).length;
     total += n;
     if (modo === "deteccion") {
@@ -443,6 +563,9 @@ function cambiarModo(nuevo) {
   $("ayuda-pintar").hidden = modo !== "pintar";
   $("ayuda-juego").hidden = modo !== "juego";
   $("ayuda-avatar").hidden = modo !== "avatar";
+  $("ayuda-musica").hidden = modo !== "musica";
+  if (modo === "musica") activarAudio();
+  else sinte?.tocar(null);
   if (modo === "avatar") cargarMalla();
 }
 
@@ -460,7 +583,7 @@ $("guardar").addEventListener("click", () => {
 $("jugar").addEventListener("click", empezarPartida);
 document.addEventListener("keydown", (e) => {
   if ($("controles").hidden) return;
-  const modos = { 1: "deteccion", 2: "particulas", 3: "pintar", 4: "juego", 5: "avatar" };
+  const modos = { 1: "deteccion", 2: "particulas", 3: "pintar", 4: "juego", 5: "avatar", 6: "musica" };
   if (modos[e.key]) cambiarModo(modos[e.key]);
   if (e.key === " " && modo === "juego") {
     e.preventDefault(); // que la barra espaciadora no haga scroll
@@ -468,6 +591,9 @@ document.addEventListener("keydown", (e) => {
   }
   if (e.key.toLowerCase() === "a" && modo === "avatar") cambiarEstilo(estiloAvatar + 1);
 });
+for (const boton of document.querySelectorAll("[data-instrumento]")) {
+  boton.addEventListener("click", () => cambiarInstrumento(boton.dataset.instrumento));
+}
 for (const boton of document.querySelectorAll("[data-estilo]")) {
   boton.addEventListener("click", () => cambiarEstilo(ESTILOS.indexOf(boton.dataset.estilo)));
 }
