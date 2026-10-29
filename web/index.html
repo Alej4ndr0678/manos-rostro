@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Manos y Rostro</title>
-  <meta name="description" content="Detección de manos y rostro en tiempo real en el navegador con MediaPipe: dedos, gestos, partículas, pintar en el aire, un minijuego, un avatar que imita tu cara y un instrumento musical.">
+  <meta name="description" content="Detección de manos y rostro en tiempo real en el navegador con MediaPipe: dedos, gestos, partículas, pintar en el aire, un minijuego, un avatar que imita tu cara, un instrumento musical y objetos 3D que agarras con las manos.">
   <link rel="stylesheet" href="estilos.css">
 </head>
 <body>
@@ -33,6 +33,7 @@
         <button data-modo="juego" aria-pressed="false">4 · Juego</button>
         <button data-modo="avatar" aria-pressed="false">5 · Avatar</button>
         <button data-modo="musica" aria-pressed="false">6 · Música</button>
+        <button data-modo="objetos" aria-pressed="false">7 · 3D</button>
       </div>
 
       <div class="opciones">
@@ -81,6 +82,13 @@
           <button data-instrumento="organo" aria-pressed="false">Órgano</button>
           <button data-instrumento="flauta" aria-pressed="false">Flauta</button>
         </div>
+      </div>
+
+      <div id="ayuda-objetos" class="ayuda" hidden>
+        <p>🤏 <strong>Pellizca</strong> (pulgar + índice) cerca de un objeto para agarrarlo y muévelo.
+          <strong>Gira la muñeca</strong> para girarlo. Agárralo con <strong>las dos manos</strong> y sepáralas para hacerlo más grande.
+          Suéltalo en movimiento y saldrá <strong>lanzado</strong>.</p>
+        <button id="reiniciar-objetos">Recolocar objetos</button>
       </div>
     </section>
   </main>
