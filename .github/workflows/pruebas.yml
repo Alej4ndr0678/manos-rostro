@@ -1,0 +1,44 @@
+# Ejecuta las pruebas automaticamente en cada push y en cada pull request,
+# en Windows y en Linux, para enterarnos si algo se rompe antes de hacer merge.
+name: Pruebas
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pruebas:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.12", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: requirements*.txt
+
+      - name: Librerias del sistema (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libegl1 libgles2
+
+      - name: Instalar dependencias
+        run: pip install -r requirements-dev.txt
+
+      # Los modelos y las fotos de ejemplo se guardan entre ejecuciones (no hace falta bajarlos siempre)
+      - uses: actions/cache@v4
+        with:
+          path: tests/.cache
+          key: modelos-v1
+
+      - name: Pruebas rapidas (logica, sin modelos)
+        run: python -m pytest -m "not modelos" -v
+
+      - name: Pruebas con los modelos de verdad
+        run: python -m pytest -m modelos -v
