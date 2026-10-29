@@ -38,6 +38,7 @@ const GESTOS = {
 const LADO = { Left: "Izquierda", Right: "Derecha" };
 const COLOR_LADO = { Izquierda: "#38bdf8", Derecha: "#fb923c" };
 
+const MODOS = ["deteccion", "particulas", "pintar", "juego", "avatar", "musica", "objetos", "pong"];
 const $ = (id) => document.getElementById(id);
 const video = $("video");
 const lienzo = $("lienzo");
@@ -105,7 +106,11 @@ async function crearModelos() {
   throw new Error("No se pudieron cargar los modelos");
 }
 
+// Modo con el que arrancar: el de la tarjeta pulsada o el de la direccion (ej. ...#musica)
+let modoInicial = MODOS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "deteccion";
+
 async function empezar() {
+  if ($("empezar").disabled) return;
   $("empezar").disabled = true;
   try {
     estado("Pidiendo permiso para la cámara…");
@@ -123,8 +128,10 @@ async function empezar() {
     juego = new Juego(lienzo.width, lienzo.height);
     juego.record = leerRecord();
     $("portada").hidden = true;
+    $("galeria").hidden = true;
     $("controles").hidden = false;
     estado(`Funcionando (${delegate === "GPU" ? "GPU" : "CPU"})`);
+    cambiarModo(modoInicial);
     requestAnimationFrame(bucle);
   } catch (error) {
     console.error(error);
@@ -701,6 +708,9 @@ function bucle() {
 
 function cambiarModo(nuevo) {
   modo = nuevo;
+  history.replaceState(null, "", `#${modo}`); // asi se puede compartir el enlace a un modo
+  // Las opciones de esqueleto y rostro solo pintan algo en los tres primeros modos
+  $("ver-manos").parentElement.hidden = $("ver-rostro").parentElement.hidden = !["deteccion", "particulas", "pintar"].includes(modo);
   for (const boton of document.querySelectorAll("[data-modo]")) {
     boton.setAttribute("aria-pressed", String(boton.dataset.modo === modo));
   }
@@ -718,6 +728,22 @@ function cambiarModo(nuevo) {
 }
 
 $("empezar").addEventListener("click", empezar);
+for (const tarjeta of document.querySelectorAll("[data-ir]")) {
+  tarjeta.setAttribute("aria-current", String(tarjeta.dataset.ir === modoInicial && location.hash !== ""));
+  tarjeta.addEventListener("click", () => {
+    modoInicial = tarjeta.dataset.ir;
+    for (const t of document.querySelectorAll("[data-ir]")) t.setAttribute("aria-current", String(t === tarjeta));
+    $("portada").scrollIntoView({ behavior: "smooth", block: "center" });
+    empezar();
+  });
+}
+
+function pantallaCompleta() {
+  const escenario = document.querySelector(".escenario");
+  if (document.fullscreenElement) document.exitFullscreen();
+  else escenario.requestFullscreen?.().catch(() => estado("Este navegador no deja usar la pantalla completa."));
+}
+$("pantalla-completa").addEventListener("click", pantallaCompleta);
 for (const boton of document.querySelectorAll("[data-modo]")) {
   boton.addEventListener("click", () => cambiarModo(boton.dataset.modo));
 }
@@ -731,8 +757,8 @@ $("guardar").addEventListener("click", () => {
 $("jugar").addEventListener("click", empezarPartida);
 document.addEventListener("keydown", (e) => {
   if ($("controles").hidden) return;
-  const modos = { 1: "deteccion", 2: "particulas", 3: "pintar", 4: "juego", 5: "avatar", 6: "musica", 7: "objetos", 8: "pong" };
-  if (modos[e.key]) cambiarModo(modos[e.key]);
+  if (/^[1-8]$/.test(e.key)) cambiarModo(MODOS[Number(e.key) - 1]);
+  if (e.key.toLowerCase() === "f") pantallaCompleta();
   if (e.key === " " && modo === "juego") {
     e.preventDefault(); // que la barra espaciadora no haga scroll
     empezarPartida();

@@ -120,7 +120,34 @@ button[aria-pressed="true"] {
 .ayuda[hidden] { display: none; }
 footer { padding-bottom: 24px; font-size: 0.9rem; }
 
+h2 { font-size: 1.2rem; margin: 8px 0 12px; }
+#galeria[hidden] { display: none; }
+.tarjetas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.tarjeta {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  justify-items: start;
+  text-align: left;
+  padding: 14px 16px;
+  border-radius: 12px;
+  transition: transform 0.15s, border-color 0.15s;
+}
+.tarjeta:hover, .tarjeta:focus-visible { transform: translateY(-2px); border-color: var(--acento); }
+.tarjeta .icono { font-size: 1.8rem; line-height: 1; }
+.tarjeta span:last-child { color: var(--suave); font-size: 0.9rem; }
+.tarjeta[aria-current="true"] { border: 2px solid var(--acento); }
+.opciones[hidden] { display: none; }
+.escenario:fullscreen { border-radius: 0; margin: 0; aspect-ratio: auto; }
+
 @media (max-width: 520px) {
   .info { grid-template-columns: repeat(2, 1fr); }
+  .tarjetas { grid-template-columns: repeat(2, 1fr); }
+  .tarjeta { padding: 12px; }
   h1 { font-size: 1.5rem; }
 }
