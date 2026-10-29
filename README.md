@@ -217,6 +217,22 @@ Usa el modelo de **pose** de MediaPipe (33 puntos del cuerpo) y mide el ángulo 
 - Teclas: `1` sentadilla, `2` flexión, `3` curl, `r` reiniciar y `q` salir.
 - **Consejo:** ponte **de lado** a la cámara y que se te vea el cuerpo entero. El programa usa el lado del cuerpo que mejor se ve.
 
+## Teclado en el aire
+
+```powershell
+python paso16_teclado.py
+```
+
+Aparece un teclado encima de la imagen de la cámara:
+
+- **Apuntar:** la punta del dedo índice es el cursor.
+- **Pulsar:** junta la punta del **pulgar** con la del **corazón**. Así el índice no se mueve al pulsar y no te equivocas de tecla.
+- **Modo mirar** (tecla `m`): en vez de pellizcar, deja el dedo quieto 0,8 s sobre una tecla. Un círculo alrededor del cursor muestra cuánto falta.
+- **Sugerencias:** la fila de arriba propone 3 palabras que empiezan como la que estás escribiendo. Aprende las palabras que vas escribiendo y pone primero las que más usas.
+- `MAYUS` pone en mayúscula solo la siguiente letra, como en el móvil.
+- **Escribir en otras aplicaciones** (tecla `e`): lo que escribas en el aire le llega también a la ventana activa (un bloc de notas, el navegador...). Haz clic en ella después de activarlo. En Linux necesita una sesión X11, igual que el ratón virtual. La `ñ` no se puede enviar así, porque `pyautogui` solo sabe teclear caracteres ASCII.
+- `q` sale y muestra en la terminal todo lo que has escrito.
+
 ## Versión web
 
 La carpeta `web/` tiene una versión que funciona en el navegador con [MediaPipe para JavaScript](https://ai.google.dev/edge/mediapipe/solutions/vision/gesture_recognizer/web_js): detección de manos, dedos, gestos y rostro, partículas y pintar en el aire. Se publica sola en **GitHub Pages**: https://alej4ndr0678.github.io/manos-rostro/
@@ -266,6 +282,7 @@ Cada paso se puede ejecutar por separado, y `sistema.py` los une:
 | `paso13_control.py` | Control de música, volumen y diapositivas con gestos |
 | `paso14_senas.py` | Traductor de lengua de señas entrenable |
 | `paso15_ejercicio.py` | Contador de ejercicio con la pose del cuerpo |
+| `paso16_teclado.py` | Teclado virtual en el aire con sugerencias de palabras |
 | `hilos.py` | Cámara y detección en hilos separados (más FPS) |
 | `plataforma.py` | Diferencias entre Windows y Linux (cámara, ratón) |
 | `instalar_linux.sh` | Instalación en Linux |
