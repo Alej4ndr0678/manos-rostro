@@ -32,3 +32,6 @@ tests/.cache/
 
 # Registro de intentos de desbloqueo (paso 12)
 accesos.log
+
+# Muestras grabadas para el traductor de senas (paso 14)
+senas.csv
