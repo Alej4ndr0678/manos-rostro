@@ -17,6 +17,7 @@ Hecho con [OpenCV](https://opencv.org/) (cámara y dibujo) y [MediaPipe](https:/
 - Reconocimiento de identidad: te registras una vez y luego el programa dice tu nombre al verte.
 - Desbloqueo biométrico: cara + prueba de vida al azar (parpadeos y giro de cabeza) + PIN marcado con los dedos.
 - Control del PC con gestos: volumen, música (play/pausa, siguiente, anterior) y pasar diapositivas.
+- Traductor de lengua de señas que entrenas tú: grabas ejemplos de cada seña y un modelo de machine learning (Random Forest) aprende a reconocerlas.
 - Reconocimiento de 7 gestos: puño, mano abierta, apuntar arriba, pulgar arriba/abajo, victoria y "te quiero".
 - Partículas con física (gravedad, rozamiento, brillo) que siguen el movimiento de los dedos. Pellizco = explosión.
 - Todo se activa y desactiva con el teclado.
@@ -169,6 +170,28 @@ Teclas en la ventana de la cámara: `m` cambia entre modo música y diapositivas
 - **Diapositivas:** las flechas le llegan a la ventana activa. Después de abrir el programa, haz clic en la presentación (PowerPoint, Google Slides, un PDF...). El volumen y la música funcionan siempre.
 - **Linux:** usa `xdotool` para las teclas multimedia (lo instala `instalar_linux.sh`) y, como el ratón virtual, necesita una sesión X11.
 
+## Traductor de lengua de señas
+
+Aquí el modelo lo entrenas tú, así que reconoce las señas que le enseñes (letras del alfabeto dactilológico, números o lo que quieras):
+
+```powershell
+python paso14_senas.py grabar A     # graba 150 ejemplos de la seña "A" (mueve un poco la mano)
+python paso14_senas.py grabar B     # ...una vez por cada seña
+python paso14_senas.py entrenar     # precisión, informe por seña y matriz de confusión
+python paso14_senas.py              # traducir en tiempo real
+```
+
+Al traducir, mantener una seña 1 segundo la escribe. Teclas: `espacio` añade un espacio, `b` borra una letra, `c` borra todo y `q` sale.
+
+Cómo funciona:
+
+1. De cada mano se sacan **63 números** (x, y, z de los 21 puntos) **normalizados**: se resta la muñeca y se divide por el tamaño de la mano, así da igual dónde esté la mano y lo cerca que estés. La mano izquierda se refleja, así que vale cualquier mano.
+2. Los ejemplos se guardan en `senas.csv` (ignorado por git).
+3. Un **Random Forest** (muchos árboles de decisión que votan) aprende qué números corresponden a cada seña. `entrenar` lo evalúa con **validación cruzada**: lo prueba con ejemplos que no ha visto al entrenar.
+4. El modelo se entrena al arrancar (tarda menos de un segundo) y **no se guarda con `pickle`** a propósito: cargar un pickle puede ejecutar código, y es un fallo de seguridad clásico.
+
+Consejos: graba cada seña con buena luz, girando y acercando un poco la mano. Si `entrenar` muestra que dos señas se confunden, graba más ejemplos de ellas. Las señas con movimiento (como la J o la Z) no se pueden reconocer así, porque el modelo solo ve una foto de la mano.
+
 ## Pruebas
 
 Las pruebas comprueban que todo sigue funcionando después de cada cambio, sin tener que abrir la webcam:
@@ -202,6 +225,7 @@ Cada paso se puede ejecutar por separado, y `sistema.py` los une:
 | `paso11_reconocer.py` | Reconocimiento de identidad |
 | `paso12_desbloqueo.py` | Desbloqueo con cara, prueba de vida y PIN de dedos |
 | `paso13_control.py` | Control de música, volumen y diapositivas con gestos |
+| `paso14_senas.py` | Traductor de lengua de señas entrenable |
 | `hilos.py` | Cámara y detección en hilos separados (más FPS) |
 | `plataforma.py` | Diferencias entre Windows y Linux (cámara, ratón) |
 | `instalar_linux.sh` | Instalación en Linux |

@@ -215,3 +215,36 @@ def test_desbloqueo_con_una_foto_es_denegado(cache, monkeypatch, tmp_path):
     assert estados[-1] == "denegado"
     log = (tmp_path / "accesos.log").read_text(encoding="utf-8")
     assert "prueba de vida" in log
+
+
+def test_senas_con_manos_reales(cache):
+    # "Grabamos" tres senas a partir de fotos reales (con ruido, como si movieras la mano),
+    # entrenamos, y comprobamos que reconoce las fotos, tambien en espejo (la otra mano).
+    import paso2_manos
+    import paso14_senas as senas
+
+    paso2_manos.descargar_modelo()
+    rng = np.random.default_rng(0)
+    originales, X, y = {}, [], []
+    for archivo, letra in [("pulgar_arriba.jpg", "Pulgar"), ("victoria.jpg", "V"), ("apuntar.jpg", "Uno")]:
+        detector = paso2_manos.crear_detector()
+        try:
+            resultado = paso2_manos.detectar(detector, foto(archivo), 0)
+        finally:
+            detector.close()
+        puntos = resultado.hand_landmarks[0]
+        lado = paso2_manos.LADO_REAL[resultado.handedness[0][0].category_name]
+        originales[letra] = (puntos, lado)
+        base = senas.caracteristicas(puntos, lado)
+        for _ in range(40):
+            X.append(base + rng.normal(0, 0.03, base.shape))
+            y.append(letra)
+    modelo = senas.entrenar(np.array(X), np.array(y))
+
+    for letra, (puntos, lado) in originales.items():
+        assert senas.predecir(modelo, senas.caracteristicas(puntos, lado))[0] == letra
+        # La misma sena hecha con la otra mano (imagen reflejada)
+        from types import SimpleNamespace
+        espejo = [SimpleNamespace(x=1 - p.x, y=p.y, z=p.z) for p in puntos]
+        otro_lado = "Izquierda" if lado == "Derecha" else "Derecha"
+        assert senas.predecir(modelo, senas.caracteristicas(espejo, otro_lado))[0] == letra
