@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Manos y Rostro</title>
-  <meta name="description" content="Detección de manos y rostro en tiempo real en el navegador con MediaPipe: dedos, gestos, partículas, pintar en el aire, un minijuego, un avatar que imita tu cara, un instrumento musical objetos 3D que agarras con las manos y Pong.">
+  <meta name="description" content="Detección de manos y rostro en tiempo real en el navegador con MediaPipe: dedos, gestos, partículas, pintar en el aire, un minijuego, un avatar que imita tu cara, un instrumento musical, objetos 3D que agarras con las manos y Pong.">
   <link rel="stylesheet" href="estilos.css">
 </head>
 <body>
@@ -23,21 +23,36 @@
       </div>
     </div>
 
-    <p id="estado" class="estado" role="status">Pulsa «Activar cámara» para empezar.</p>
+    <p id="estado" class="estado" role="status">Pulsa «Activar cámara» o elige qué quieres probar.</p>
+
+    <section id="galeria" aria-labelledby="titulo-galeria">
+      <h2 id="titulo-galeria">¿Qué quieres probar?</h2>
+      <div class="tarjetas">
+        <button class="tarjeta" data-ir="deteccion"><span class="icono">🖐️</span><strong>Detección</strong><span>Manos, dedos, gestos y rostro</span></button>
+        <button class="tarjeta" data-ir="particulas"><span class="icono">✨</span><strong>Partículas</strong><span>Luz que sale de tus dedos</span></button>
+        <button class="tarjeta" data-ir="pintar"><span class="icono">🎨</span><strong>Pintar</strong><span>Dibuja en el aire con el índice</span></button>
+        <button class="tarjeta" data-ir="juego"><span class="icono">🎯</span><strong>Minijuego</strong><span>Explota bolas de luz en 60 s</span></button>
+        <button class="tarjeta" data-ir="avatar"><span class="icono">😺</span><strong>Avatar</strong><span>Un personaje copia tu cara</span></button>
+        <button class="tarjeta" data-ir="musica"><span class="icono">🥁</span><strong>Música</strong><span>Batería y theremin con las manos</span></button>
+        <button class="tarjeta" data-ir="objetos"><span class="icono">🧊</span><strong>3D</strong><span>Agarra, gira y lanza objetos</span></button>
+        <button class="tarjeta" data-ir="pong"><span class="icono">🏓</span><strong>Pong</strong><span>Contra un amigo o el ordenador</span></button>
+      </div>
+    </section>
 
     <section id="controles" hidden>
       <div class="modos" role="group" aria-label="Modo">
-        <button data-modo="deteccion" aria-pressed="true">1 · Detección</button>
-        <button data-modo="particulas" aria-pressed="false">2 · Partículas</button>
-        <button data-modo="pintar" aria-pressed="false">3 · Pintar</button>
-        <button data-modo="juego" aria-pressed="false">4 · Juego</button>
-        <button data-modo="avatar" aria-pressed="false">5 · Avatar</button>
-        <button data-modo="musica" aria-pressed="false">6 · Música</button>
-        <button data-modo="objetos" aria-pressed="false">7 · 3D</button>
-        <button data-modo="pong" aria-pressed="false">8 · Pong</button>
+        <button data-modo="deteccion" aria-pressed="true">🖐️ 1 · Detección</button>
+        <button data-modo="particulas" aria-pressed="false">✨ 2 · Partículas</button>
+        <button data-modo="pintar" aria-pressed="false">🎨 3 · Pintar</button>
+        <button data-modo="juego" aria-pressed="false">🎯 4 · Juego</button>
+        <button data-modo="avatar" aria-pressed="false">😺 5 · Avatar</button>
+        <button data-modo="musica" aria-pressed="false">🥁 6 · Música</button>
+        <button data-modo="objetos" aria-pressed="false">🧊 7 · 3D</button>
+        <button data-modo="pong" aria-pressed="false">🏓 8 · Pong</button>
       </div>
 
       <div class="opciones">
+        <button id="pantalla-completa" title="Pantalla completa (tecla F)">⛶ Pantalla completa</button>
         <label><input type="checkbox" id="ver-manos" checked> Esqueleto de manos</label>
         <label><input type="checkbox" id="ver-rostro" checked> Rostro</label>
       </div>
