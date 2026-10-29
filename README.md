@@ -283,7 +283,25 @@ python -m pytest -m "not modelos"   # solo las rápidas, sin modelos ni internet
 - **Rápidas:** usan manos "inventadas" (21 puntos con coordenadas puestas a mano) para probar el contador de dedos, pintar, el minijuego, el ratón virtual y los hilos.
 - **Con modelos:** usan fotos de ejemplo de MediaPipe para comprobar que los gestos, las manos, el rostro y la identidad se detectan de verdad, y arrancan `sistema.py` completo con una cámara simulada.
 
-GitHub Actions las ejecuta solo en cada push y en cada pull request, en Windows y en Linux, junto con las de la versión web (`.github/workflows/pruebas.yml`). La insignia de arriba se pone verde si todo pasa.
+### Estilo y revisiones antes de cada commit
+
+[ruff](https://docs.astral.sh/ruff/) revisa el código y busca errores típicos: imports sin usar, variables que no existen, imports desordenados o sintaxis antigua. La configuración está en `ruff.toml`.
+
+```powershell
+ruff check .          # revisar
+ruff check . --fix    # arreglar lo que sabe arreglar solo
+```
+
+Con **pre-commit** se ejecuta solo antes de cada commit, y si algo falla el commit no se hace:
+
+```powershell
+pre-commit install            # una vez
+pre-commit run --all-files    # a mano, sobre todo el repo
+```
+
+Además de ruff, `.pre-commit-config.yaml` **bloquea** los commits que incluyan datos personales (`caras/`, `accesos.log`, `senas.csv` y las fotos `foto_*.png`) o modelos descargados (`.task`, `.tflite`, `.onnx`). Es una segunda barrera por si algún día se toca el `.gitignore`.
+
+GitHub Actions las ejecuta solo en cada push y en cada pull request, en Windows y en Linux, junto con las de la versión web y la revisión de ruff (`.github/workflows/pruebas.yml`). La insignia de arriba se pone verde si todo pasa.
 
 ## Estructura
 

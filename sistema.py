@@ -13,12 +13,12 @@ import time
 import cv2
 import numpy as np
 
+import hilos
 import paso2_manos as manos
 import paso3_rostro as rostro
 import paso5_dedos as dedos
 import paso6_particulas as particulas_fx
 import paso7_gestos as gestos
-import hilos
 
 _ultimo_detector = None  # para poder consultar los FPS de deteccion desde fuera (pruebas)
 

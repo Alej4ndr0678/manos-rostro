@@ -30,7 +30,7 @@ class Bola:
     def __init__(self, ancho, dificultad):
         r = random.random()
         acumulado = 0
-        for tipo, (_, _, prob) in TIPOS.items():
+        for tipo, (_, _, prob) in TIPOS.items():  # noqa: B007 (tipo se usa al salir del bucle)
             acumulado += prob
             if r <= acumulado:
                 break

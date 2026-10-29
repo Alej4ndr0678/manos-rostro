@@ -1,0 +1,24 @@
+# Revisiones que se ejecutan solas antes de cada commit (si algo falla, el commit no se hace).
+# Instalar una vez:  pip install -r requirements-dev.txt  y luego  pre-commit install
+# Ejecutar a mano sobre todo el repo:  pre-commit run --all-files
+repos:
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff (estilo y errores tipicos)
+        entry: ruff check --fix
+        language: system
+        types: [python]
+
+      # Los datos biometricos NUNCA deben subirse, aunque alguien quite caras/ del .gitignore
+      - id: sin-datos-biometricos
+        name: no subir caras/ ni registros personales
+        entry: "Estos archivos tienen datos personales (caras, PIN, accesos o senas grabadas). No los subas."
+        language: fail
+        files: '^(caras/|accesos\.log$|senas\.csv$|foto_.*\.png$)'
+
+      - id: sin-modelos
+        name: no subir modelos (se descargan solos)
+        entry: "Los modelos (.task, .tflite, .onnx) se descargan solos: no hace falta subirlos."
+        language: fail
+        files: '\.(task|tflite|onnx)$'

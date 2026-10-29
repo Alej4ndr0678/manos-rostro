@@ -265,8 +265,8 @@ def test_pose_guerrero_de_yoga(cache):
     puntos = resultado.pose_landmarks[0]
     alto, ancho = imagen.shape[:2]
     px = ej.a_pixeles(puntos, ancho, alto)
-    codos = [ej.angulo(px[ej.HOMBRO[l]], px[ej.CODO[l]], px[ej.MUNECA[l]]) for l in ("izq", "der")]
-    rodillas = sorted(ej.angulo(px[ej.CADERA[l]], px[ej.RODILLA[l]], px[ej.TOBILLO[l]]) for l in ("izq", "der"))
+    codos = [ej.angulo(px[ej.HOMBRO[lado]], px[ej.CODO[lado]], px[ej.MUNECA[lado]]) for lado in ("izq", "der")]
+    rodillas = sorted(ej.angulo(px[ej.CADERA[lado]], px[ej.RODILLA[lado]], px[ej.TOBILLO[lado]]) for lado in ("izq", "der"))
     assert all(c > 150 for c in codos), f"brazos estirados: {codos}"
     assert rodillas[0] < 130, f"una rodilla doblada: {rodillas}"
     assert rodillas[1] > 150, f"la otra recta: {rodillas}"
@@ -278,8 +278,9 @@ def test_pose_guerrero_de_yoga(cache):
     ("dos_manos.jpg", "Beso"),          # labios en forma de beso
 ])
 def test_expresion_en_fotos(cache, archivo, esperada):
-    import paso17_emociones as emo
     from mediapipe.tasks.python import vision
+
+    import paso17_emociones as emo
     emo.descargar_modelo()
     detector = emo.crear_detector(vision.RunningMode.IMAGE)
     try:
