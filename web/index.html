@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Manos y Rostro</title>
-  <meta name="description" content="Detección de manos y rostro en tiempo real en el navegador con MediaPipe: dedos, gestos, partículas, pintar en el aire, un minijuego, un avatar que imita tu cara, un instrumento musical, objetos 3D que agarras con las manos, Pong, corta frutas un holograma 3D de tu cara esculturas de luz en 3D y un reto de gestos.">
+  <meta name="description" content="Detección de manos y rostro en tiempo real en el navegador con MediaPipe: dedos, gestos, partículas, pintar en el aire, un minijuego, un avatar que imita tu cara, un instrumento musical, objetos 3D que agarras con las manos, Pong, corta frutas un holograma 3D de tu cara esculturas de luz en 3D un reto de gestos y tu cuerpo en neón.">
   <link rel="stylesheet" href="estilos.css">
 </head>
 <body>
@@ -40,6 +40,7 @@
         <button class="tarjeta" data-ir="holograma"><span class="icono">🔮</span><strong>Holograma</strong><span>Tu cara en 3D, gírala con la mano</span></button>
         <button class="tarjeta" data-ir="escultura"><span class="icono">🌀</span><strong>Escultura de luz</strong><span>Dibuja en el aire una figura 3D</span></button>
         <button class="tarjeta" data-ir="reto"><span class="icono">🧠</span><strong>Reto de gestos</strong><span>Haz el gesto antes de que acabe el tiempo</span></button>
+        <button class="tarjeta" data-ir="neon"><span class="icono">🕺</span><strong>Cuerpo de neón</strong><span>Baila y deja estela de luz</span></button>
       </div>
     </section>
 
@@ -57,6 +58,7 @@
         <button data-modo="holograma" aria-pressed="false">🔮 0 · Holograma</button>
         <button data-modo="escultura" aria-pressed="false">🌀 Escultura</button>
         <button data-modo="reto" aria-pressed="false">🧠 Reto</button>
+        <button data-modo="neon" aria-pressed="false">🕺 Neón</button>
       </div>
 
       <div class="opciones">
@@ -147,6 +149,11 @@
         <p>🧠 Aparece una orden: un <strong>gesto</strong> (✌️ 👍 👎 ✊ ☝️ 🤟) o un <strong>número de dedos</strong> del 1 al 10
           (a partir de 6, con las dos manos). Hazla y mantenla un momento antes de que se vacíe la barra. Cuanto más rápido, más puntos,
           y cada acierto te da menos tiempo. Con 3 fallos se acaba. Abajo ves qué gesto y cuántos dedos está detectando.</p>
+      </div>
+
+      <div id="ayuda-neon" class="ayuda" hidden>
+        <p>🕺 Aléjate un poco para que se vea tu cuerpo entero: tu esqueleto se convierte en tubos de neón que cambian de color
+          y dejan estela. Mueve rápido las manos o los pies y saltarán chispas. Caben dos personas. Pruébalo con «Grabar vídeo».</p>
       </div>
 
       <div id="ayuda-ninja" class="ayuda" hidden>
