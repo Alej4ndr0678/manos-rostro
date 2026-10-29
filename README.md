@@ -233,6 +233,29 @@ Aparece un teclado encima de la imagen de la cámara:
 - **Escribir en otras aplicaciones** (tecla `e`): lo que escribas en el aire le llega también a la ventana activa (un bloc de notas, el navegador...). Haz clic en ella después de activarlo. En Linux necesita una sesión X11, igual que el ratón virtual. La `ñ` no se puede enviar así, porque `pyautogui` solo sabe teclear caracteres ASCII.
 - `q` sale y muestra en la terminal todo lo que has escrito.
 
+## Emociones y filtros
+
+```powershell
+python paso17_emociones.py
+```
+
+El modelo de malla facial devuelve 52 **blendshapes**: números de 0 a 1 que dicen cuánto se mueve cada parte de la cara (sonrisa, cejas, boca abierta, cada ojo...). Combinándolos se detectan 6 expresiones, cada una con su filtro:
+
+| Expresión | Qué mira | Filtro |
+|-----------|----------|--------|
+| 😄 Alegría | Sonrisa | Estrellas |
+| 😮 Sorpresa | Cejas arriba + boca abierta | Un «!» enorme |
+| 😠 Enfado | Cejas abajo + nariz arrugada | Tinte rojo y «#@!%» |
+| 😢 Tristeza | Comisuras hacia abajo + cejas | Tinte azul y lágrimas |
+| 😘 Beso | Labios en forma de beso | Corazones |
+| 😉 Guiño | Un ojo cerrado y el otro abierto | Estrellas en los ojos |
+
+- Al reír de verdad, las cejas bajan y los ojos se achinan, así que el enfado, la sorpresa y la tristeza se multiplican por *(1 − sonrisa)* para no confundir una carcajada con un enfado.
+- **Calibrar** (tecla `n`): cada cara es distinta, y hay quien tiene las cejas bajas sin estar enfadado. Mira a la cámara sin expresión durante 1 segundo. A partir de ahí se mide lo que cambias respecto a tu cara normal.
+- **Foto al sonreír** (tecla `a`): hace una foto sola cuando sonríes durante medio segundo. `s` hace una foto en cualquier momento. Se guardan como `foto_*.png` (ignoradas por git).
+- Otras teclas: `f` activa o quita los filtros y `q` sale.
+- Las barras de la izquierda muestran cada puntuación, y la línea roja marca el umbral a partir del cual cuenta.
+
 ## Versión web
 
 La carpeta `web/` tiene una versión que funciona en el navegador con [MediaPipe para JavaScript](https://ai.google.dev/edge/mediapipe/solutions/vision/gesture_recognizer/web_js): detección de manos, dedos, gestos y rostro, partículas, pintar en el aire y el **minijuego** de las bolas de luz (modo 4; el récord se guarda en el navegador). Se publica sola en **GitHub Pages**: https://alej4ndr0678.github.io/manos-rostro/
@@ -283,6 +306,7 @@ Cada paso se puede ejecutar por separado, y `sistema.py` los une:
 | `paso14_senas.py` | Traductor de lengua de señas entrenable |
 | `paso15_ejercicio.py` | Contador de ejercicio con la pose del cuerpo |
 | `paso16_teclado.py` | Teclado virtual en el aire con sugerencias de palabras |
+| `paso17_emociones.py` | Expresiones de la cara con filtros y foto al sonreír |
 | `hilos.py` | Cámara y detección en hilos separados (más FPS) |
 | `plataforma.py` | Diferencias entre Windows y Linux (cámara, ratón) |
 | `instalar_linux.sh` | Instalación en Linux |
