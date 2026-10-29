@@ -15,6 +15,7 @@ import { anclas, Arcoiris, BOCA_ABIERTA, dibujarArcoiris, dibujarFiltro, FILTROS
 import { Juego } from "./juego.js";
 import { leerMano, Manipulador } from "./manipular.js";
 import { Ninja, VIDAS } from "./ninja.js";
+import { ESPERA_EMPEZAR, MANTENER, Reto, VIDAS as VIDAS_RETO } from "./reto.js";
 import { ALTO_PALA, Pong, PUNTOS_PARA_GANAR, X_PALAS } from "./pong.js";
 import { Bateria, nota, NUM_NOTAS, PADS, Sintetizador, Theremin } from "./musica.js";
 import { Particulas, PUNTAS } from "./particulas.js";
@@ -42,7 +43,7 @@ const GESTOS = {
 const LADO = { Left: "Izquierda", Right: "Derecha" };
 const COLOR_LADO = { Izquierda: "#38bdf8", Derecha: "#fb923c" };
 
-const MODOS = ["deteccion", "particulas", "pintar", "juego", "avatar", "musica", "objetos", "pong", "ninja", "holograma", "escultura"];
+const MODOS = ["deteccion", "particulas", "pintar", "juego", "avatar", "musica", "objetos", "pong", "ninja", "holograma", "escultura", "reto"];
 // Modos en los que se pueden ver el esqueleto de las manos y las cajas de los rostros
 const MODOS_CON_OPCIONES = ["deteccion", "particulas", "pintar"];
 const $ = (id) => document.getElementById(id);
@@ -96,6 +97,9 @@ let cargandoEscultura = null;
 let escultura = null;
 let anteriorEscultura = null;
 let pellizcoEscultura = false;
+let reto = null;
+let anteriorReto = null;
+let destelloReto = { color: null, hasta: 0 }; // verde al acertar, rojo al fallar
 const particulas = new Particulas();
 const suavizador = new Suavizador();
 let ultimoTiempoVideo = -1;
@@ -965,6 +969,83 @@ function dibujarEscultura(manos, ahora) {
   }
 }
 
+// ---------- Reto de gestos ----------
+
+function dibujarReto(manos, ahora) {
+  const W = lienzo.width;
+  const H = lienzo.height;
+  if (!reto) {
+    reto = new Reto();
+    reto.record = leerRecord("record-reto");
+  }
+  const dt = anteriorReto === null ? 1 / 60 : ahora - anteriorReto;
+  anteriorReto = ahora;
+  const entrada = {
+    gestos: manos.map((m) => m.gesto).filter(Boolean),
+    dedos: manos.reduce((n, m) => n + m.dedos.filter(Boolean).length, 0),
+  };
+  for (const e of reto.actualizar(entrada, dt, ahora)) {
+    if (e.tipo === "acierto") {
+      destelloReto = { color: "74, 222, 128", hasta: ahora + 0.3 };
+      sinte?.bip(880 + reto.aciertos * 30, 0.1);
+    } else if (e.tipo === "fallo") {
+      destelloReto = { color: "248, 113, 113", hasta: ahora + 0.4 };
+      sinte?.bip(200, 0.3);
+    } else if (e.tipo === "empezar") {
+      [523, 659].forEach((f, i) => setTimeout(() => sinte?.bip(f, 0.12), i * 120));
+    } else if (e.tipo === "fin" && reto.nuevoRecord) {
+      guardarRecord(reto.record, "record-reto");
+    }
+  }
+  if (ahora < destelloReto.hasta) {
+    ctx.fillStyle = `rgba(${destelloReto.color}, ${0.35 * ((destelloReto.hasta - ahora) / 0.3)})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+  // Lo que se ve ahora mismo (para saber por que no cuenta)
+  const veo = [...new Set(entrada.gestos)].join(" · ") || "ningún gesto";
+  textoCentrado(`Veo: ${veo} · ${entrada.dedos} ${entrada.dedos === 1 ? "dedo" : "dedos"}`, H - 24, 24, "#e4e4e7");
+
+  if (reto.estado !== "jugando") {
+    const medio = H / 2;
+    if (reto.estado === "fin") {
+      textoCentrado(`FIN · ${reto.puntos} puntos`, medio - 90, 56, "#f87171");
+      textoCentrado(reto.nuevoRecord ? "¡NUEVO RÉCORD!" : `Récord: ${reto.record}`, medio - 40, 30, "#fbbf24");
+    } else {
+      textoCentrado("RETO DE GESTOS", medio - 90, 56, "#67e8f9");
+      textoCentrado(`Haz lo que te pida antes de que se acabe el tiempo · Récord: ${reto.record}`, medio - 40, 24);
+    }
+    textoCentrado("🖐 Enseña la mano abierta para empezar", medio + 20, 34, "#4ade80");
+    const progreso = Math.min(1, reto.mantenido / ESPERA_EMPEZAR);
+    ctx.fillStyle = "rgba(255,255,255,0.2)";
+    ctx.fillRect(W / 2 - 150, medio + 45, 300, 12);
+    ctx.fillStyle = "#4ade80";
+    ctx.fillRect(W / 2 - 150, medio + 45, 300 * progreso, 12);
+    return;
+  }
+
+  // La orden, grande, con una barra de tiempo que se va vaciando
+  const resta = reto.tiempoRestante(ahora) / reto.limite;
+  ctx.fillStyle = "rgba(15, 23, 42, 0.75)";
+  ctx.beginPath();
+  ctx.roundRect(W * 0.03, 20, W * 0.94, 130, 18);
+  ctx.fill();
+  textoCentrado(reto.tarea.tipo === "dedos" ? `✋ ${reto.tarea.texto}` : reto.tarea.texto, 95, 56, "#fff");
+  ctx.fillStyle = resta > 0.35 ? "#4ade80" : "#f87171";
+  ctx.fillRect(W * 0.03 + 16, 122, (W * 0.94 - 32) * resta, 12);
+  // Anillo que se llena mientras mantienes la postura correcta
+  if (reto.mantenido > 0) {
+    ctx.strokeStyle = "#4ade80";
+    ctx.lineWidth = 10;
+    ctx.beginPath();
+    ctx.arc(W / 2, H / 2, 60, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, reto.mantenido / MANTENER));
+    ctx.stroke();
+  }
+  texto(`⭐ ${reto.puntos}`, 16, H - 60, 36, "#fbbf24");
+  const vidas = "❤️".repeat(reto.vidas) + "🖤".repeat(VIDAS_RETO - reto.vidas);
+  ctx.font = "30px sans-serif";
+  ctx.fillText(vidas, W - ctx.measureText(vidas).width - 16, H - 60);
+}
+
 function bucle() {
   const ahora = performance.now();
   // Solo detectamos cuando la camara da un frame nuevo
@@ -996,6 +1077,8 @@ function bucle() {
   if (modo === "particulas") {
     particulas.procesar(manos);
     particulas.actualizarYDibujar(ctx);
+  } else if (modo === "reto") {
+    dibujarReto(manos, ahora / 1000);
   } else if (modo === "escultura") {
     dibujarEscultura(manos, ahora / 1000);
   } else if (modo === "holograma") {
@@ -1066,11 +1149,12 @@ function cambiarModo(nuevo) {
   if (modo === "objetos") cargarEscena();
   $("ayuda-pong").hidden = modo !== "pong";
   $("ayuda-ninja").hidden = modo !== "ninja";
-  if (["musica", "pong", "ninja"].includes(modo)) activarAudio();
+  if (["musica", "pong", "ninja", "reto"].includes(modo)) activarAudio();
   else sinte?.tocar(null);
   if (modo === "avatar") cargarMalla();
   $("ayuda-holograma").hidden = modo !== "holograma";
   $("ayuda-escultura").hidden = modo !== "escultura";
+  $("ayuda-reto").hidden = modo !== "reto";
   if (modo === "escultura") cargarEscultura();
   if (modo === "holograma") {
     cargarMalla();
