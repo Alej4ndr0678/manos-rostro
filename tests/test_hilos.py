@@ -67,3 +67,27 @@ def test_el_detector_procesa_el_ultimo_frame():
         assert len(vistos) < 20           # no hace cola: descarta los frames viejos
     finally:
         detector.parar()
+
+
+def test_los_timestamps_siempre_crecen_aunque_el_reloj_se_repita(monkeypatch):
+    # En Windows time.monotonic() puede devolver el mismo valor varias veces seguidas
+    reloj = iter([0.0] * 2 + [5.0] * 1000)
+    monkeypatch.setattr(hilos.time, "monotonic", lambda: next(reloj, 5.0))
+    marcas = []
+
+    def detectar(frame, ts):
+        marcas.append(ts)
+        return frame
+
+    detector = hilos.DetectorEnHilo(detectar)
+    try:
+        for i in range(5):
+            detector.enviar(i)
+            espera = 0
+            while detector.ultimo()[0] <= i and espera < 200:
+                time.sleep(0.01)
+                espera += 1
+    finally:
+        detector.parar()
+    assert len(marcas) == 5
+    assert all(b > a for a, b in zip(marcas, marcas[1:], strict=False))
