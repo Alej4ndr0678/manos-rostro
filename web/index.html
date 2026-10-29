@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Manos y Rostro</title>
-  <meta name="description" content="Detección de manos y rostro en tiempo real en el navegador con MediaPipe: dedos, gestos, partículas, pintar en el aire, un minijuego, un avatar que imita tu cara, un instrumento musical, objetos 3D que agarras con las manos, Pong y corta frutas.">
+  <meta name="description" content="Detección de manos y rostro en tiempo real en el navegador con MediaPipe: dedos, gestos, partículas, pintar en el aire, un minijuego, un avatar que imita tu cara, un instrumento musical, objetos 3D que agarras con las manos, Pong, corta frutas y un holograma 3D de tu cara.">
   <link rel="stylesheet" href="estilos.css">
 </head>
 <body>
@@ -37,6 +37,7 @@
         <button class="tarjeta" data-ir="objetos"><span class="icono">🧊</span><strong>3D</strong><span>Agarra, gira y lanza objetos</span></button>
         <button class="tarjeta" data-ir="pong"><span class="icono">🏓</span><strong>Pong</strong><span>Contra un amigo o el ordenador</span></button>
         <button class="tarjeta" data-ir="ninja"><span class="icono">🥷</span><strong>Ninja</strong><span>Corta frutas con el dedo</span></button>
+        <button class="tarjeta" data-ir="holograma"><span class="icono">🔮</span><strong>Holograma</strong><span>Tu cara en 3D, gírala con la mano</span></button>
       </div>
     </section>
 
@@ -51,6 +52,7 @@
         <button data-modo="objetos" aria-pressed="false">🧊 7 · 3D</button>
         <button data-modo="pong" aria-pressed="false">🏓 8 · Pong</button>
         <button data-modo="ninja" aria-pressed="false">🥷 9 · Ninja</button>
+        <button data-modo="holograma" aria-pressed="false">🔮 0 · Holograma</button>
       </div>
 
       <div class="opciones">
@@ -114,6 +116,13 @@
         <p>🏓 Sube y baja la mano para mover tu pala: la mano de la <strong>mitad izquierda</strong> mueve la pala izquierda y la de la
           <strong>derecha</strong>, la derecha. Juega contra un amigo o, con una sola mano, contra el ordenador. Gana quien llegue a 7.</p>
         <button id="nueva-pong">Nueva partida</button>
+      </div>
+
+      <div id="ayuda-holograma" class="ayuda" hidden>
+        <p>🔮 Tu cara convertida en un holograma 3D con los 478 puntos de la malla facial (cada uno tiene profundidad).
+          <strong>Pellizca y arrastra</strong> para girarlo y verte de perfil; suéltalo en movimiento y seguirá girando.
+          «Congelar» (tecla <kbd>C</kbd>) lo deja quieto para que lo mires con calma.</p>
+        <button id="congelar" aria-pressed="false">❄️ Congelar</button>
       </div>
 
       <div id="ayuda-ninja" class="ayuda" hidden>

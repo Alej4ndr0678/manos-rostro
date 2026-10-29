@@ -8,9 +8,10 @@ import {
 } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.1/vision_bundle.mjs";
 import { dibujarAvatar, ESTILOS, parametros, pose, Suavizado } from "./avatar.js";
 import { dedosLevantados, Suavizador } from "./dedos.js";
-import { crearEscena, OBJETOS } from "./escena3d.js";
+import { crearEscena, crearHolograma, OBJETOS } from "./escena3d.js";
+import { centrarMalla, Rotador } from "./holograma.js";
 import { Juego } from "./juego.js";
-import { Manipulador } from "./manipular.js";
+import { leerMano, Manipulador } from "./manipular.js";
 import { Ninja, VIDAS } from "./ninja.js";
 import { ALTO_PALA, Pong, PUNTOS_PARA_GANAR, X_PALAS } from "./pong.js";
 import { Bateria, nota, NUM_NOTAS, PADS, Sintetizador, Theremin } from "./musica.js";
@@ -39,7 +40,7 @@ const GESTOS = {
 const LADO = { Left: "Izquierda", Right: "Derecha" };
 const COLOR_LADO = { Izquierda: "#38bdf8", Derecha: "#fb923c" };
 
-const MODOS = ["deteccion", "particulas", "pintar", "juego", "avatar", "musica", "objetos", "pong", "ninja"];
+const MODOS = ["deteccion", "particulas", "pintar", "juego", "avatar", "musica", "objetos", "pong", "ninja", "holograma"];
 // Modos en los que se pueden ver el esqueleto de las manos y las cajas de los rostros
 const MODOS_CON_OPCIONES = ["deteccion", "particulas", "pintar"];
 const $ = (id) => document.getElementById(id);
@@ -77,6 +78,12 @@ let ninja = null;
 let anteriorNinja = null;
 const textosNinja = []; // "+3 COMBO", "✕"... que flotan un momento
 let flashNinja = 0; // destello blanco al cortar una bomba
+let holograma = null; // Three.js + malla facial, solo al entrar en el modo
+let cargandoHolograma = null;
+const rotador = new Rotador();
+let anteriorHolograma = null;
+let pellizcoHolograma = false;
+let congelado = false;
 const particulas = new Particulas();
 const suavizador = new Suavizador();
 let ultimoTiempoVideo = -1;
@@ -816,6 +823,69 @@ function dibujarNinja(manos, ahora) {
   }
 }
 
+// ---------- Holograma ----------
+
+function cargarHolograma() {
+  cargandoHolograma ??= crearHolograma(lienzo.width, lienzo.height, FaceLandmarker.FACE_LANDMARKS_TESSELATION)
+    .then((h) => {
+      holograma = h;
+    })
+    .catch((error) => {
+      console.error(error);
+      estado("No se pudo cargar el holograma (hace falta WebGL).");
+    });
+  return cargandoHolograma;
+}
+
+function congelar() {
+  congelado = !congelado;
+  $("congelar").textContent = congelado ? "▶ Seguir mi cara" : "❄️ Congelar";
+  $("congelar").setAttribute("aria-pressed", String(congelado));
+}
+
+function dibujarHolograma(manos, ahora) {
+  const W = lienzo.width;
+  const H = lienzo.height;
+  // Fondo mas oscuro, para que brille
+  ctx.fillStyle = "rgba(2, 6, 23, 0.6)";
+  ctx.fillRect(0, 0, W, H);
+  if (!holograma || !malla) {
+    textoCentrado("Cargando el holograma…", H / 2, 32, "#67e8f9");
+    return;
+  }
+  const dt = anteriorHolograma === null ? 1 / 60 : ahora - anteriorHolograma;
+  anteriorHolograma = ahora;
+
+  // La primera mano que se vea gira el holograma pellizcando y arrastrando
+  let pinza = null;
+  if (manos.length) {
+    pinza = leerMano(manos[0].puntos.map((p) => ({ x: p.x / W, y: p.y / H })), pellizcoHolograma, W / H);
+    pellizcoHolograma = pinza.pellizco;
+  }
+  const { rotX, rotY } = rotador.actualizar(pinza, dt);
+  const cara = resultadoMalla?.faceLandmarks[0];
+  ctx.drawImage(holograma.dibujar(cara ? centrarMalla(cara, W / H) : null, rotX, rotY, ahora), 0, 0, W, H);
+
+  // Lineas de escaneo, como en las peliculas
+  ctx.fillStyle = "rgba(34, 211, 238, 0.05)";
+  for (let y = (ahora * 40) % 6; y < H; y += 6) ctx.fillRect(0, y, W, 2);
+
+  if (pinza) {
+    const x = pinza.x * W;
+    const y = pinza.y * H;
+    ctx.strokeStyle = ctx.fillStyle = pinza.pellizco ? "#22d3ee" : "rgba(255,255,255,0.8)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(x, y, pinza.pellizco ? 10 : 18, 0, Math.PI * 2);
+    if (pinza.pellizco) ctx.fill();
+    else ctx.stroke();
+  }
+  const grados = Math.round((((rotY * 180) / Math.PI) % 360 + 360) % 360);
+  texto(`${congelado ? "❄️ CONGELADO" : "● EN VIVO"} · ${grados}°`, 16, 40, 24, congelado ? "#93c5fd" : "#f87171");
+  if (!cara && !congelado) textoCentrado("Ponte delante de la cámara", H - 30, 26, "#e4e4e7");
+  else if (rotador.quieto > 4) textoCentrado("🤏 Pellizca y arrastra para girar tu holograma", H - 30, 26, "#e4e4e7");
+}
+
 function bucle() {
   const ahora = performance.now();
   // Solo detectamos cuando la camara da un frame nuevo
@@ -824,7 +894,7 @@ function bucle() {
     resultadoManos = reconocedor.recognizeForVideo(video, ahora);
     // (en los juegos no se busca el rostro: no se dibuja y asi va mas fluido)
     resultadoRostro = verRostro() ? detectorRostro.detectForVideo(video, ahora) : null;
-    resultadoMalla = modo === "avatar" && malla ? malla.detectForVideo(video, ahora) : null;
+    resultadoMalla = (modo === "avatar" || (modo === "holograma" && !congelado)) && malla ? malla.detectForVideo(video, ahora) : null;
   }
   fps = 0.9 * fps + 0.1 * (1000 / Math.max(ahora - anterior, 1));
   anterior = ahora;
@@ -841,12 +911,14 @@ function bucle() {
   }
 
   const manos = manosEnPixeles();
-  const rostros = modo === "avatar" ? dibujarAvatares() : dibujarRostros();
+  const rostros = modo === "avatar" ? dibujarAvatares() : modo === "holograma" ? (resultadoMalla?.faceLandmarks.length ?? 0) : dibujarRostros();
   let total = 0;
 
   if (modo === "particulas") {
     particulas.procesar(manos);
     particulas.actualizarYDibujar(ctx);
+  } else if (modo === "holograma") {
+    dibujarHolograma(manos, ahora / 1000);
   } else if (modo === "ninja") {
     dibujarNinja(manos, ahora / 1000);
   } else if (modo === "pong") {
@@ -892,7 +964,7 @@ function bucle() {
   $("info-fps").textContent = Math.round(fps);
   $("info-manos").textContent = manos.length;
   $("info-dedos").textContent = total;
-  $("info-rostros").textContent = verRostro() || modo === "avatar" ? rostros : "–";
+  $("info-rostros").textContent = verRostro() || modo === "avatar" || modo === "holograma" ? rostros : "–";
   requestAnimationFrame(bucle);
 }
 
@@ -916,6 +988,11 @@ function cambiarModo(nuevo) {
   if (["musica", "pong", "ninja"].includes(modo)) activarAudio();
   else sinte?.tocar(null);
   if (modo === "avatar") cargarMalla();
+  $("ayuda-holograma").hidden = modo !== "holograma";
+  if (modo === "holograma") {
+    cargarMalla();
+    cargarHolograma();
+  }
 }
 
 $("empezar").addEventListener("click", empezar);
@@ -1008,7 +1085,7 @@ $("guardar").addEventListener("click", () => {
 $("jugar").addEventListener("click", empezarPartida);
 document.addEventListener("keydown", (e) => {
   if ($("controles").hidden) return;
-  if (/^[1-9]$/.test(e.key)) cambiarModo(MODOS[Number(e.key) - 1]);
+  if (/^[0-9]$/.test(e.key)) cambiarModo(MODOS[(Number(e.key) + 9) % 10]); // el 0 es el decimo
   if (e.key.toLowerCase() === "f") pantallaCompleta();
   if (e.key.toLowerCase() === "g") alternarGrabacion();
   if (e.key === " " && modo === "juego") {
@@ -1019,9 +1096,11 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     if (pong?.estado === "fin") nuevaPartidaPong();
   }
+  if (e.key.toLowerCase() === "c" && modo === "holograma") congelar();
   if (e.key.toLowerCase() === "a" && modo === "avatar") cambiarEstilo(estiloAvatar + 1);
 });
 $("reiniciar-objetos").addEventListener("click", reiniciarObjetos);
+$("congelar").addEventListener("click", congelar);
 $("nueva-pong").addEventListener("click", nuevaPartidaPong);
 for (const boton of document.querySelectorAll("[data-instrumento]")) {
   boton.addEventListener("click", () => cambiarInstrumento(boton.dataset.instrumento));
