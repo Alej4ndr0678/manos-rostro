@@ -156,3 +156,73 @@ export async function crearHolograma(ancho, alto, conexiones, numPuntos = 478) {
     },
   };
 }
+
+// Escultura de luz: cada punto de los trazos es una bolita que brilla. Todos los trazos van
+// dentro de un grupo que gira (el "torno"). maxPuntos = MAX_PUNTOS de escultura.js.
+export async function crearEscultura(ancho, alto, maxPuntos) {
+  const THREE = await import(URL_THREE);
+  const lienzo = document.createElement("canvas");
+  const renderer = new THREE.WebGLRenderer({ canvas: lienzo, alpha: true, antialias: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(1);
+  renderer.setSize(ancho, alto, false);
+  const escena = new THREE.Scene();
+  const camara = new THREE.PerspectiveCamera(FOV, ancho / alto, 0.1, 100);
+  camara.position.z = DISTANCIA_CAMARA;
+  const altoMundo = 2 * DISTANCIA_CAMARA * Math.tan((FOV * Math.PI) / 360);
+  const anchoMundo = altoMundo * (ancho / alto);
+
+  const torno = new THREE.Group();
+  escena.add(torno);
+  // Suelo con una rejilla circular que gira con la escultura (asi se nota el giro)
+  const suelo = new THREE.PolarGridHelper(altoMundo * 0.4, 16, 5, 64, 0x0e7490, 0x155e75);
+  suelo.position.y = -altoMundo * 0.42;
+  torno.add(suelo);
+  // Con luz, para que los trazos parezcan tubos con volumen
+  escena.add(new THREE.HemisphereLight(0xffffff, 0x1e293b, 2.2));
+  const luz = new THREE.DirectionalLight(0xffffff, 1.5);
+  luz.position.set(3, 5, 6);
+  escena.add(luz);
+  const bolitas = new THREE.InstancedMesh(new THREE.SphereGeometry(0.07, 8, 6), new THREE.MeshLambertMaterial(), maxPuntos);
+  bolitas.count = 0;
+  bolitas.frustumCulled = false;
+  torno.add(bolitas);
+
+  const matriz = new THREE.Matrix4();
+  const color = new THREE.Color();
+  let dibujados = 0;
+  let version = -1;
+  return {
+    lienzo,
+    anchoMundo,
+    altoMundo,
+    // escultura = la de escultura.js
+    dibujar(escultura) {
+      if (escultura.version !== version) {
+        version = escultura.version;
+        dibujados = 0;
+      }
+      // Solo anadimos los puntos nuevos (los anteriores no cambian)
+      let i = 0;
+      for (const trazo of escultura.trazos) {
+        color.setHSL(trazo.color / 360, 0.9, 0.6);
+        for (const p of trazo.puntos) {
+          if (i >= dibujados && i < maxPuntos) {
+            matriz.makeTranslation(p.x, p.y, p.z);
+            bolitas.setMatrixAt(i, matriz);
+            bolitas.setColorAt(i, color);
+          }
+          i++;
+        }
+      }
+      if (i !== dibujados) {
+        dibujados = Math.min(i, maxPuntos);
+        bolitas.count = dibujados;
+        bolitas.instanceMatrix.needsUpdate = true;
+        if (bolitas.instanceColor) bolitas.instanceColor.needsUpdate = true;
+      }
+      torno.rotation.y = escultura.giro;
+      renderer.render(escena, camara);
+      return lienzo;
+    },
+  };
+}

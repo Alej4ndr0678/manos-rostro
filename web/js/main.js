@@ -8,7 +8,8 @@ import {
 } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.1/vision_bundle.mjs";
 import { dibujarAvatar, ESTILOS, parametros, pose, Suavizado } from "./avatar.js";
 import { dedosLevantados, Suavizador } from "./dedos.js";
-import { crearEscena, crearHolograma, OBJETOS } from "./escena3d.js";
+import { crearEscena, crearEscultura, crearHolograma, OBJETOS } from "./escena3d.js";
+import { Escultura, MAX_PUNTOS } from "./escultura.js";
 import { centrarMalla, Rotador } from "./holograma.js";
 import { anclas, Arcoiris, BOCA_ABIERTA, dibujarArcoiris, dibujarFiltro, FILTROS } from "./filtros.js";
 import { Juego } from "./juego.js";
@@ -41,7 +42,7 @@ const GESTOS = {
 const LADO = { Left: "Izquierda", Right: "Derecha" };
 const COLOR_LADO = { Izquierda: "#38bdf8", Derecha: "#fb923c" };
 
-const MODOS = ["deteccion", "particulas", "pintar", "juego", "avatar", "musica", "objetos", "pong", "ninja", "holograma"];
+const MODOS = ["deteccion", "particulas", "pintar", "juego", "avatar", "musica", "objetos", "pong", "ninja", "holograma", "escultura"];
 // Modos en los que se pueden ver el esqueleto de las manos y las cajas de los rostros
 const MODOS_CON_OPCIONES = ["deteccion", "particulas", "pintar"];
 const $ = (id) => document.getElementById(id);
@@ -88,6 +89,11 @@ const rotador = new Rotador();
 let anteriorHolograma = null;
 let pellizcoHolograma = false;
 let congelado = false;
+let escenaEscultura = null; // Three.js, solo al entrar en el modo
+let cargandoEscultura = null;
+let escultura = null;
+let anteriorEscultura = null;
+let pellizcoEscultura = false;
 const particulas = new Particulas();
 const suavizador = new Suavizador();
 let ultimoTiempoVideo = -1;
@@ -902,6 +908,57 @@ function dibujarHolograma(manos, ahora) {
   else if (rotador.quieto > 4) textoCentrado("🤏 Pellizca y arrastra para girar tu holograma", H - 30, 26, "#e4e4e7");
 }
 
+// ---------- Escultura de luz ----------
+
+function cargarEscultura() {
+  cargandoEscultura ??= crearEscultura(lienzo.width, lienzo.height, MAX_PUNTOS)
+    .then((e) => {
+      escenaEscultura = e;
+      escultura = new Escultura(e.anchoMundo, e.altoMundo);
+    })
+    .catch((error) => {
+      console.error(error);
+      estado("No se pudo cargar la escultura 3D (hace falta WebGL).");
+    });
+  return cargandoEscultura;
+}
+
+function dibujarEscultura(manos, ahora) {
+  const W = lienzo.width;
+  const H = lienzo.height;
+  ctx.fillStyle = "rgba(2, 6, 23, 0.55)";
+  ctx.fillRect(0, 0, W, H);
+  if (!escenaEscultura) {
+    textoCentrado("Cargando la escena 3D…", H / 2, 32, "#67e8f9");
+    return;
+  }
+  const dt = anteriorEscultura === null ? 1 / 60 : ahora - anteriorEscultura;
+  anteriorEscultura = ahora;
+  // Dibuja la primera mano que se vea, pellizcando (pulgar + indice)
+  let pinza = null;
+  if (manos.length) {
+    pinza = leerMano(manos[0].puntos.map((p) => ({ x: p.x / W, y: p.y / H })), pellizcoEscultura, W / H);
+    pellizcoEscultura = pinza.pellizco;
+  }
+  escultura.actualizar(pinza, dt);
+  ctx.drawImage(escenaEscultura.dibujar(escultura), 0, 0, W, H);
+
+  if (pinza) {
+    const color = `hsl(${escultura.dibujando ? escultura.trazos.at(-1).color : escultura.color}, 90%, 60%)`;
+    ctx.strokeStyle = ctx.fillStyle = color;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(pinza.x * W, pinza.y * H, pinza.pellizco ? 9 : 18, 0, Math.PI * 2);
+    if (pinza.pellizco) ctx.fill();
+    else ctx.stroke();
+  }
+  texto(`${escultura.trazos.length} trazos · ${escultura.total} puntos`, 16, 40, 22, "#a5f3fc");
+  if (escultura.trazos.length === 0) {
+    textoCentrado("🤏 Pellizca y mueve la mano para dibujar con luz", H - 60, 28);
+    textoCentrado("La escena gira: cada trazo queda en otro ángulo y sale una figura 3D", H - 24, 22, "#e4e4e7");
+  }
+}
+
 function bucle() {
   const ahora = performance.now();
   // Solo detectamos cuando la camara da un frame nuevo
@@ -933,6 +990,8 @@ function bucle() {
   if (modo === "particulas") {
     particulas.procesar(manos);
     particulas.actualizarYDibujar(ctx);
+  } else if (modo === "escultura") {
+    dibujarEscultura(manos, ahora / 1000);
   } else if (modo === "holograma") {
     dibujarHolograma(manos, ahora / 1000);
   } else if (modo === "ninja") {
@@ -1005,6 +1064,8 @@ function cambiarModo(nuevo) {
   else sinte?.tocar(null);
   if (modo === "avatar") cargarMalla();
   $("ayuda-holograma").hidden = modo !== "holograma";
+  $("ayuda-escultura").hidden = modo !== "escultura";
+  if (modo === "escultura") cargarEscultura();
   if (modo === "holograma") {
     cargarMalla();
     cargarHolograma();
@@ -1113,10 +1174,18 @@ document.addEventListener("keydown", (e) => {
     if (pong?.estado === "fin") nuevaPartidaPong();
   }
   if (e.key.toLowerCase() === "c" && modo === "holograma") congelar();
+  if (e.key.toLowerCase() === "z" && modo === "escultura") escultura?.deshacer();
   if (e.key.toLowerCase() === "a" && modo === "avatar") cambiarEstilo(estiloAvatar + 1);
 });
 $("reiniciar-objetos").addEventListener("click", reiniciarObjetos);
 $("congelar").addEventListener("click", congelar);
+$("deshacer-escultura").addEventListener("click", () => escultura?.deshacer());
+$("borrar-escultura").addEventListener("click", () => escultura?.borrar());
+$("girar-escultura").addEventListener("click", () => {
+  if (!escultura) return;
+  escultura.girando = !escultura.girando;
+  $("girar-escultura").textContent = escultura.girando ? "⏸ Parar el giro" : "▶ Girar";
+});
 $("nueva-pong").addEventListener("click", nuevaPartidaPong);
 for (const boton of document.querySelectorAll("[data-instrumento]")) {
   boton.addEventListener("click", () => cambiarInstrumento(boton.dataset.instrumento));
