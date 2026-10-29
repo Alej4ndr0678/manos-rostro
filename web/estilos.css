@@ -142,7 +142,7 @@ h2 { font-size: 1.2rem; margin: 8px 0 12px; }
 .tarjeta .icono { font-size: 1.8rem; line-height: 1; }
 .tarjeta span:last-child { color: var(--suave); font-size: 0.9rem; }
 .tarjeta[aria-current="true"] { border: 2px solid var(--acento); }
-.opciones[hidden] { display: none; }
+.opciones[hidden], .opciones label[hidden] { display: none; }
 .escenario:fullscreen { border-radius: 0; margin: 0; aspect-ratio: auto; }
 
 @media (max-width: 520px) {
